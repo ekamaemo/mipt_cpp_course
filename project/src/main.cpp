@@ -15,6 +15,8 @@
 #include <fstream>
 #include <print>
 #include <string>
+#include <map>
+#include <vector>
 
 int main(int argc, char** argv) {
     // Аргументы разбираются грубо: путь к журналу и ничего больше. Остальное,
@@ -30,9 +32,21 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    bool quiet = false;
+    for (int i = 2; i < argc; ++i) {
+        if (std::string(argv[i]) == "--quiet") {
+            quiet= true;
+        }
+    }
+
     long long lines = 0;
     long long comments = 0;
+    long long total = 0;
     std::string line;
+    std::map<std::string, unsigned> types;
+    const std::vector<std::string> signatures = {
+        "wscript.exe", ".locked", "certutil.exe", "\\Startup\\",
+    };
 
     while (std::getline(log, line)) {
         // Счётчик увеличивается до всех проверок: он считает строки файла,
@@ -46,13 +60,52 @@ int main(int argc, char** argv) {
             ++comments;
             continue;
         }
-
+        
         // >>> Здесь начинается занятие 1.1.
         //
         // Проверка признаков и печать детекта. Номер строки, который нужен
         // в выводе, — это lines.
-    }
+        
+        std::size_t i = 0;
+        while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
+            ++i;
+        }
 
-    std::print("строк {}, из них комментариев {}\n", lines, comments);
+        if (i == line.size()) {
+            continue;
+        }
+
+        if (line[i] == '#' || line[i] == ';') {
+            ++comments;
+            continue;
+        }
+        ++total;
+
+        const std::string key = "type=";
+        std::size_t pos = line.find(key);
+        if (pos != std::string::npos) {
+            std::size_t start = pos + key.size();
+            std::size_t end = start;
+            while (end < line.size() && line[end] != ' ' && line[end] != '\t') {
+                ++end;
+            }
+            const std::string type = line.substr(start, end - start);
+
+            ++types[type];
+        }
+
+        for (const std::string& sig : signatures) {
+            if (line.find(sig) != std::string::npos) {
+                std::print("[DETECT] строка {}, признак {}: {}\n", lines, sig, line);
+            }
+        }
+
+    }
+    if (!quiet) {
+        std::print("Всего событий: {}\n", total);
+        for (const auto& [type, count] : types) {
+            std::print(" {}: {}\n", type, count);
+        }
+    }
     return 0;
 }
