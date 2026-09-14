@@ -75,10 +75,6 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        if (line[i] == '#' || line[i] == ';') {
-            ++comments;
-            continue;
-        }
         ++total;
 
         const std::string key = "type=";
