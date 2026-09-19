@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
     }
     if (!quiet) {
-        std::print("Всего событий: {}\n", total);
+        std::print("Всего событий: {}, комментариев: {}\n", total, comments);
         for (const auto& [type, count] : types) {
             std::print(" {}: {}\n", type, count);
         }
