@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     }
 
     bool quiet = false;
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
             quiet= true;
         }
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
         const std::string key = "type=";
         std::size_t pos = line.find(key);
-        if (pos != std::string::npos) {
+        if (pos != std::string::npos && (pos == 0 || line[pos-1] == ' ')) {
             std::size_t start = pos + key.size();
             std::size_t end = start;
             while (end < line.size() && line[end] != ' ' && line[end] != '\t') {
