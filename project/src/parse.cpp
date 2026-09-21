@@ -1,34 +1,43 @@
-#include<../kit/include/l1.2/parse.h>
+#include<parse.h>
 
 namespace nano_edr {
-    bool IsBlankOrComment(const std::string* line) {
-        std::size_t i = 0;
-        while (i < line->size() && ((*line)[i] == ' ' || (*line)[i] == '\t')){
-            i++;
+    namespace {
+
+        bool isSpace(const char element){
+            if (element == ' ' || element == '\t'){
+                return true;
+            }
+            return false;
         }
-        if (i == line->size()){
+    }
+
+    bool IsBlankOrComment(const std::string* line) {
+        std::size_t i = line->find_first_not_of(" \t");
+
+        if (i == std::string::npos) {
             return true;
-        } 
-        if ((*line)[i] == ';' || (*line)[i] == '#'){
+        }
+
+        if ((*line)[i] == ';' || (*line)[i] == '#') {
             return true;
         }
         return false;
     }
 
     bool ParseFields(const std::string* text, std::vector<Field>* out){
-        std::size_t i = 0;
         std::size_t k_start = 0;
         std::string key;
         std::size_t v_start = 0;
+        std::size_t i = 0;
         while (i < text->size()){
-            while (i < text->size() && ((*text)[i] == ' ' || (*text)[i] == '\t')){
-                i++;
+            while (i < text->size() && isSpace((*text)[i])) {
+                ++i;
             }
             if (i == text->size()){
                 return true;
             }
             k_start = i;
-            while (i <text->size() && (*text)[i] != '=' && (*text)[i] != ' ' && (*text)[i] != '\t'){
+            while (i <text->size() && (*text)[i] != '=' && (not isSpace((*text)[i]))) {
                 i++;
             }
             if (i == text->size() || (*text)[i] != '='){
@@ -49,24 +58,26 @@ namespace nano_edr {
                     value += (*text)[i];
                     i++;
                 }
-                if (i == text->size() ||(*text)[i] != '"'){
+                if (i == text->size() || (*text)[i] != '"'){
                     return false;
                 }
                 i++;
-                if (i < text->size() && (*text)[i] != ' ' && (*text)[i]!= '\t'){
+                if (i < text->size() && (not isSpace((*text)[i]))){
                     return false;
                 }
             } else {
                 // нет кавычек
                 v_start = i;
-                while (i < text->size() && (*text)[i] != ' ' && (*text)[i] != '\t'){
+                while (i < text->size() && (not isSpace((*text)[i]))){
                     i++;
                 }
                 value = text->substr(v_start, i - v_start);
             }
-        out->push_back({key, value});
+
+            out->push_back({key, value});
         }
-    return true;
+        
+        return true;
     }
 
     bool ParseEventLine(const std::string* line, Event* out){
@@ -81,10 +92,10 @@ namespace nano_edr {
         bool flag_ts = false;
         bool flag_type = false;
         for (const Field& field: fields){
-            if (field.key == "ts"){
+            if (field.key == "ts" && !flag_ts){
                 flag_ts = true;
                 out->ts = field.value;
-            } else if (field.key == "type"){
+            } else if (field.key == "type" && !flag_type){
                 flag_type = true;
                 out->type = field.value;
             } else if (field.key == "pid"){
@@ -98,4 +109,5 @@ namespace nano_edr {
         }
         return false;
     }
+
 }

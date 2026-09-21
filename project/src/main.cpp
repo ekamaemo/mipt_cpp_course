@@ -15,12 +15,11 @@
 #include <fstream>
 #include <print>
 #include <string>
-#include "../kit/include/l1.2/parse.h"
-#include "../kit/include/l1.2/event_list.h"
+#include "parse.h"
+#include "event_list.h"
 #include <charconv>
 #include<map>
 #include<vector>
-
 
 int main(int argc, char** argv) {
     // Аргументы разбираются грубо: путь к журналу и ничего больше. Остальное,
@@ -38,28 +37,28 @@ int main(int argc, char** argv) {
     }
 
     bool quiet = false;
-    std::size_t window = 64;
+    std::size_t window_size = 64;
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
             quiet= true;
-        } else if (std::string(argv[i])=="--window"){
+        } else if (std::string(argv[i])=="--window-size"){
             if (i + 1 >= argc) {
-                std::print(stderr, "ошибка: после --window нужно указать число\n");
+                std::print(stderr, "ошибка: после --window-size нужно указать число\n");
                 return 2;
             }
             std::string value = argv[++i];
             std::size_t parsed = 0;
             auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
             if (result.ec != std::errc{} || result.ptr != value.data() + value.size()){
-                std::print(stderr, "ошибка: --window требует целое число");
+                std::print(stderr, "ошибка: --window-size требует целое число");
                 return 2;
             }
-            window = parsed;
+            window_size = parsed;
         }
     }
 
     nano_edr::EventList window_events;
-    window_events.capacity = window;
+    window_events.capacity = window_size;
 
     long long lines = 0;
     long long comments = 0;
@@ -90,7 +89,7 @@ int main(int argc, char** argv) {
         total++;
         ++types[event.type];
 
-        nano_edr::ListPushBack(&window_events, &event);
+        
         for (const std::string& sig : signatures) {
             bool detected = false;
             for (const nano_edr:: Field& field : event.fields) {
@@ -100,47 +99,43 @@ int main(int argc, char** argv) {
                 }
             }
 
-            if (event.type.find(sig) != std::string::npos || event.ts.find(sig) != std::string::npos || event.pid.find(sig) != std::string::npos) {
-                detected = true;
-            }
-
             if (detected) {
                 if (!quiet) {
-                    std::vector<const nano_edr::Event*> previous;
+                    nano_edr::Event* prev_prev_event = nullptr;
+                    nano_edr::Event* prev_event = nullptr;
+                    
                     nano_edr::EventNode* current = window_events.head;
-                    while (current != nullptr){
-                        if (&current->event == &event){
-                            break;
-                        }
 
-                        previous.push_back(&current->event);
+                    while (current != nullptr){
+                        prev_prev_event = prev_event;
+                        prev_event = &current->event;
                         current = current->next;
                     }
 
-                    std::size_t start = 0;
-                    if (previous.size() > 2) {
-                        start = previous.size() - 2;
+                    if (prev_prev_event != nullptr){
+                        std::print(
+                            "[CTX] {}: ts={} type={} pid={}\n",
+                            -2,
+                            prev_prev_event->ts,
+                            prev_prev_event->type,
+                            prev_prev_event->pid
+                        );
                     }
 
-                    int number = -2;
-
-                    for (std::size_t j = start; j < previous.size(); ++j) {
-                        const nano_edr::Event* previous_event = previous[j];
-
+                    if (prev_event != nullptr){
                         std::print(
-                            "[CTX]    {}: ts={} type={} pid={}\n",
-                            number,
-                            previous_event->ts,
-                            previous_event->type,
-                            previous_event->pid
+                            "[CTX] {}: ts={} type={} pid={}\n",
+                            -1,
+                            prev_event->ts,
+                            prev_event->type,
+                            prev_event->pid
                         );
-
-                        ++number;
                     }
                 }
                 std::print("[DETECT] строка {}, признак {}: {}\n", lines, sig, line);
             }
         }
+        nano_edr::ListPushBack(&window_events, &event);
 
     }
     if (!quiet) {

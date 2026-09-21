@@ -1,4 +1,4 @@
-#include<../kit/include/l1.2/event_list.h>
+#include<event_list.h>
 namespace nano_edr {
     void ListPushBack(EventList *list, const Event *event){
         if (list->capacity > 0 && list->size == list->capacity){
@@ -15,22 +15,18 @@ namespace nano_edr {
             list->tail = event_in_list;
         }
 
-        list->size += 1;
+        ++list->size;
     }
 
     void ListPopFront(EventList* list){
-        if (list->size > 1){
+        if (list->size >= 1){
             EventNode *old_head = list-> head;
             EventNode *new_head = list->head->next;
             list->head = new_head;
-            list->size -=1;
-
-            delete old_head;
-        } else if (list->size == 1){
-            EventNode *old_head = list-> head;
-            list->head = nullptr;
-            list->tail = nullptr;
-            list->size -= 1;
+            if (list->size == 1){
+                list->tail = nullptr;
+            }
+            --list->size;
 
             delete old_head;
         }
