@@ -88,11 +88,17 @@ set(NANO_EDR_SETS_4.3 2.1 2.3 3.1 3.2 3.3 4.1 4.2 4.3)
 #                       примитив живёт до занятия, где появляется
 #                       стандартный аналог. Остальное в наборе 3.2 —
 #                       получатели и модель сущностей — нужно как прежде.
+#   случаи контекста из набора 1.2, с занятия 1.3: они сверяют строки [CTX]
+#                       с эталоном, а эталон снят с детектов-подстрок. На 1.3
+#                       детект — сработавшее правило, и контекст печатается
+#                       перед другими строками журнала. Формат [CTX] при этом
+#                       не меняется, меняется только то, где он появляется.
 #   os_handle_tests.cpp из набора 2.1, с занятия 4.2: конструктор OsHandle
 #                       стал приватным, на его место встала фабрика Open
 #                       с std::expected. Тесты бросающего конструктора
 #                       приезжают заменой в наборе 4.2.
 
+set(NANO_EDR_DROP_CONTEXT_CASES_FROM      1.3)
 set(NANO_EDR_DROP_EVENT_LIST_FROM         4.1)
 set(NANO_EDR_DROP_OWN_FUNCTION_FROM       4.1)
 set(NANO_EDR_DROP_THROWING_OS_HANDLE_FROM 4.2)
@@ -132,6 +138,12 @@ macro(nano_edr_resolve_lesson lesson)
 
     if(NOT NANO_EDR_TASKS)
         set(NANO_EDR_TASKS ${NANO_EDR_SETS_${lesson}})
+    endif()
+
+    nano_edr_lesson_at_least(_nano_edr_drop_context
+                             "${lesson}" "${NANO_EDR_DROP_CONTEXT_CASES_FROM}")
+    if(_nano_edr_drop_context)
+        set(NANO_EDR_NO_CONTEXT_CASES ON)
     endif()
 
     nano_edr_lesson_at_least(_nano_edr_drop_list
