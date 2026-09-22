@@ -9,11 +9,10 @@ namespace nano_edr {
         event_in_list -> event = *event;
         if (list->size == 0){
             list->head = event_in_list;
-            list->tail = event_in_list;
         } else {
             list->tail->next = event_in_list;
-            list->tail = event_in_list;
         }
+        list->tail = event_in_list;
 
         ++list->size;
     }
@@ -23,10 +22,10 @@ namespace nano_edr {
             EventNode *old_head = list-> head;
             EventNode *new_head = list->head->next;
             list->head = new_head;
-            if (list->size == 1){
+            --list->size;
+            if (list->size == 0){
                 list->tail = nullptr;
             }
-            --list->size;
 
             delete old_head;
         }
