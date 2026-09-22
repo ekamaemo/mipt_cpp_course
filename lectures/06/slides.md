@@ -1,6 +1,6 @@
 ---
 marp: true
-theme: gaia
+theme: pt
 footer: 'Программирование на языке C++. ВШПИ МФТИ 2026'
 paginate: true
 ---
@@ -9,6 +9,8 @@ section {
     font-size: 25px;
 }
 </style>
+
+<!-- _class: lead -->
 
 # Лекция 6.
 
@@ -65,19 +67,10 @@ d.age = 5;     // унаследованное поле
 
 ## Когда наследование уместно
 
-Наследование оправдано в двух случаях:
-
 1. **Подтипизация (subtyping).** Где работает `Base*`, должен работать `Derived*` (лекция 7).
 2. **Расширение интерфейса.** Производный класс меняет поведение базового.
 
-В остальных случаях лучше **композиция**:
-
-```cpp
-class Engine { /* ... */ };
-
-class Car   { Engine engine_; };   // HAS an Engine — обычно верно
-class Truck : public Engine {};    // IS an Engine — обычно неверно
-```
+![width:840px](img/is-a-has-a.svg)
 
 **Правило: «is-a» — наследование, «has-a» — композиция.** В сомнении — композиция.
 
@@ -143,17 +136,10 @@ class A : public B { /* то, что обычно хотят */ };
 
 ```cpp
 class A { int a; };
-class B : public A { int b; };
-
-sizeof(B);                  // 8: A(4) + B::b(4)
+class B : public A { int b; };    // sizeof(B) == 8
 ```
 
-```
-[ A::a ][ B::b ]
-  0-3    4-7
-```
-
-Базовый класс **в начале** объекта.
+![width:900px](img/layout-single.svg)
 
 ---
 
@@ -195,18 +181,7 @@ static_assert(sizeof(Event) == 24);  // полезных — 13
 
 ## Порядок полей
 
-```
-Event         [kind][ padding ][ timestamp ][ pid ][ padding ]   24 байта
-CompactEvent  [ timestamp ][ pid ][kind][ pad ]                  16 байт
-```
-
-```cpp
-struct CompactEvent {
-    double timestamp;
-    int pid;
-    char kind;
-};
-```
+![width:900px](img/padding-order.svg)
 
 Компилятор поля не переставляет: порядок объявления гарантирован.
 
@@ -217,16 +192,11 @@ struct CompactEvent {
 ## Выравнивание в наследнике
 
 ```cpp
-class A { int a; };               // align 4
-class B : public A { double b; }; // align 8
-
-sizeof(B);                        // 16: A(4) + padding(4) + B::b(8)
+class A { int a; };                // alignof 4
+class B : public A { double b; };  // alignof 8
 ```
 
-```
-[ A::a ][ padding ][   B::b   ]
-  0-3      4-7        8-15
-```
+![width:900px](img/layout-padding.svg)
 
 База — как первое поле: те же правила, что для структуры с `int a; double b;`.
 
@@ -234,36 +204,20 @@ sizeof(B);                        // 16: A(4) + padding(4) + B::b(8)
 
 ## Пустая база и `alignas`
 
-```cpp
-struct Empty {};
-struct Holder { Empty tag; int value; };  // 8: байт на Empty + padding
-struct Tagged : Empty { int value; };     // 4: пустая база места не занимает
+![width:900px](img/empty-base.svg)
 
-struct alignas(64) Counter { long long hits; };  // alignof и sizeof — 64
-```
-
-- Пустой класс занимает **1 байт**: у каждого объекта свой адрес
-- Пустая **база** — ноль байт; так `unique_ptr` остаётся размером с указатель
-- `alignas` выравнивание только **повышает**
+- Пустой класс занимает **1 байт**: у каждого объекта свой адрес. Пустая **база** — ноль байт; так `unique_ptr` остаётся размером с указатель
+- `alignas` выравнивание только **повышает**: у `struct alignas(64) Counter { long long hits; };` и `alignof`, и `sizeof` равны 64
 
 ---
 
 ## Невыровненный доступ
 
-```cpp
-alignas(8) unsigned char buffer[16]{};
-int* p = reinterpret_cast<int*>(buffer + 1);
-*p = 5;  // UB: адрес не кратен alignof(int)
-```
+![width:940px](img/misaligned.svg)
 
-На x86 «работает». UBSan: `store to misaligned address ... requires 4 byte alignment`.
+UBSan: `store to misaligned address ... requires 4 byte alignment`.
 
-Поле из буфера байтов — пакета телеметрии — достают копированием:
-
-```cpp
-int pid;
-std::memcpy(&pid, buffer + 1, sizeof(pid));
-```
+Поле из буфера байтов — пакета телеметрии — достают копированием: `std::memcpy(&pid, buffer + 1, sizeof(pid))`.
 
 ---
 
@@ -290,9 +244,7 @@ B b;
 A a = b;             // компилируется. И это почти всегда баг
 ```
 
-`A a` — это объект размера `sizeof(A)`. Скопировалась только часть `A`; всё, что добавлял `B`, **отрезано**. Тип результата — `A`, не `B`.
-
-Указатель и ссылка на объект **смотрят**, значение — **копирует ровно свой размер**.
+![width:900px](img/slicing.svg)
 
 ---
 
@@ -326,15 +278,10 @@ public:
     B()  { std::print("B()\n"); }
     ~B() { std::print("~B()\n"); }
 };
-
 { B b; }
-// A()
-// B()
-// ~B()
-// ~A()
 ```
 
-Конструкторы: **база → наследник → тело**. Деструкторы: **обратный порядок**.
+![width:860px](img/ctor-order-chain.svg)
 
 ---
 
@@ -354,11 +301,10 @@ public:
     B(int x, int y) : A(x), y_(y) {}    // вызов A(int)
     int y_;
 };
-
 B b(1, 2);     // A::x_=1, B::y_=2
 ```
 
-Вызов конструктора базы — **в списке инициализации членов** (member initializer list), до своих полей.
+Конструктор базы вызывается **в списке инициализации членов** (member initializer list).
 
 ---
 
@@ -411,41 +357,22 @@ class Duck : public Walker, public Swimmer { /* ... */ };
 
 ---
 
-## Layout с несколькими базами
+## Layout и upcast с несколькими базами
 
 ```cpp
-class A { int a; };
-class B { int b; };
-class C : public A, public B { int c; };
-
-sizeof(C);   // 12 = A(4) + B(4) + C::c(4)
+class A { int a; };  class B { int b; };   // sizeof(C) == 12
 ```
 
-```
-[ A::a ][ B::b ][ C::c ]
-  0-3    4-7    8-11
-```
+![width:900px](img/multiple-layout.svg)
 
-Базы лежат **подряд** в порядке объявления, потом поля наследника.
-
----
-
-## Подвох: upcast сдвигает указатель
-
-```cpp
-C c;
-A* pa = &c;     // pa == &c (адрес 0)
-B* pb = &c;     // pb == &c + 4 (адрес 4 от начала)
-```
-
-При множественном наследовании на кастах (casts) между базами и наследником **компилятор сдвигает указатель**. У одиночного наследования такого нет — там все указатели на адрес 0.
-
-Это не баг — это следствие layout. Просто помните: `static_cast` между базой и наследником **может изменить значение указателя**.
+У одиночного наследования такого нет. Касты (casts) между базой и наследником, включая `static_cast`, **могут менять значение указателя**.
 
 ---
 <!-- header: 6. Ромбовидное наследование -->
 
 # 6. Ромбовидное наследование
+
+Общая база у двух промежуточных классов — **ромб** (diamond inheritance):
 
 ```cpp
 class Animal { public: int id; };
@@ -454,15 +381,7 @@ class Swimmer : public Animal { /* ... */ };
 class Duck    : public Walker, public Swimmer {};
 ```
 
-```
-       Animal
-       /    \
-   Walker  Swimmer
-       \    /
-        Duck
-```
-
-Проблема ромба (diamond): в `Duck` теперь **две копии** `Animal` — одна через `Walker`, одна через `Swimmer`.
+![width:830px](img/diamond.svg)
 
 ---
 
@@ -484,19 +403,15 @@ d.Swimmer::id = 6; // другая копия, независимая
 
 # 7. Виртуальное наследование
 
-Чтобы базовый класс был **один** в ромбе, наследование от него помечают `virtual` (virtual inheritance):
-
 ```cpp
-class Animal { public: int id; };
 class Walker  : virtual public Animal { /* ... */ };
 class Swimmer : virtual public Animal { /* ... */ };
-class Duck    : public Walker, public Swimmer {};
-
-Duck d;
-d.id = 5;     // ok, теперь одна копия Animal
+class Duck    : public Walker, public Swimmer {};   // d.id — ok
 ```
 
-`virtual` ставится на **обоих** промежуточных классах.
+![width:820px](img/virtual-inheritance.svg)
+
+`virtual` (virtual inheritance) ставится на **обоих** промежуточных классах.
 
 ---
 

@@ -32,9 +32,9 @@
 $ nano-edr scenarios/phishing_macro.cfg
 
 [DETECT] high  script_host_from_temp  ts=1730000003000 pid=1101 chain=880>1042(cmd.exe)>1101(wscript.exe)
-[ACT]    kill pid=1101 start=1730000003000 OS_OK
-[ACT]    quarantine C:\Users\max\AppData\Local\Temp\a.js -> C:\quarantine\1101-a.js OS_OK
-[STAT]   событий 20, детектов 5, тиков 12
+[ACT] kill pid=1101 start=1730000003000 OS_OK
+[ACT] quarantine C:\Users\max\AppData\Local\Temp\a.js -> C:\quarantine\1101-a.js OS_OK
+[STAT] событий 20, детектов 5, тиков 12
 ```
 
 Проверяется при этом не текст, а результат: с занятия 3.3 `sim_verify` читает
@@ -91,7 +91,7 @@ $ nano-edr scenarios/phishing_macro.cfg
 спотыкаются.
 
 Условие задачи целиком лежит в постановке: формат вывода, списки признаков,
-границы, подписи, которые менять нельзя. Наружу постановка отсылает только
+границы, сигнатуры, которые менять нельзя. Наружу постановка отсылает только
 за тем, что к условию не относится (как собрать проект —
 [`project/README.md`](../project/README.md)), или за контрактом, который вы
 обязаны прочесть сами ([`SPEC.md`](../project/SPEC.md) и `os.h`).
