@@ -29,6 +29,12 @@
 #include "rules.h"
 
 namespace nano_edr {
+    
+bool IsScriptHostFromTemp(const Event& event);
+bool IsLolbinDownload(const Event& event);
+bool IsHiddenPowershell(const Event& event);
+bool IsAutostartWrite(const Event& event);
+bool IsRansomExtension(const Event& event);
 
 // Таблица правил агента и её длина — ровно то, что принимает CheckRules.
 const Rule* AgentRules();

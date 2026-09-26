@@ -97,7 +97,7 @@ std::string NormalizePath(const std::string& path){
     }
     
     ReplacePart(path_new, "%temp%", "\\appdata\\local\\temp");
-    ReplacePart(path_new, "%tmp%", "\\a[[data\\local\\temp");
+    ReplacePart(path_new, "%tmp%", "\\appdata\\local\\temp");
     return path_new;
 }
 
