@@ -2,7 +2,6 @@
 #include<stdexcept>
 #include<cstdint>
 #include<cctype>
-
 namespace nano_edr{
 
 namespace{
@@ -15,8 +14,7 @@ namespace{
         return res;
     }
 
-    void ReplaceParts(std::string& str, const std::string from, const std::string to){
-        std::string res;
+    void ReplacePart(std::string& str, const std::string& from, const std::string& to){
         size_t start_pos;
         start_pos = str.find(from);
         if (start_pos != std::string::npos){
@@ -90,7 +88,7 @@ std::string NormalizePath(const std::string& path){
     path_new.reserve(path.size());
     for (char c: LowerString(path)){
         if (c == '/' || c == '\\'){
-            if (path_new.empty() || path_new.back() == '\\'){
+            if (path_new.empty() || path_new.back() != '\\'){
                 path_new.push_back('\\');
             }
         } else {
@@ -98,10 +96,8 @@ std::string NormalizePath(const std::string& path){
         }
     }
     
-    std::string string_temp = "%temp%";
-    std::string string_tmp = "%tmp%";
-    ReplaceParts(path_new, string_tmp, "\\appdata\\local\\temp");
-    ReplaceParts(path_new, string_temp, "\\a[[data\\local\\temp");
+    ReplacePart(path_new, "%temp%", "\\appdata\\local\\temp");
+    ReplacePart(path_new, "%tmp%", "\\a[[data\\local\\temp");
     return path_new;
 }
 
@@ -111,11 +107,22 @@ bool PathEndsWith(const Event& event, const std::string& suffix){
         return false;
     }
 
-    if (path->size() < suffix.size()){
-        return false;
+    std::string normal_path = NormalizePath(*path);
+    std::string normal_suffix = NormalizePath(suffix);
+    if (normal_path.ends_with(normal_suffix)){
+        return true;
     }
 
-    std::string path_lower = LowerString(*path);
+    return false;
+}
+
+bool CommandLineContains(const Event& event, const std::string& needle){
+    const std::string* cmdline = FindField(event, "cmdline");
+    if (cmdline == nullptr){
+        return false;
+    }
+    std::string normal_cmdline = NormalizePath(*cmdline);
+    return normal_cmdline.find(NormalizePath(needle)) != std::string::npos;
 }
 
 }
