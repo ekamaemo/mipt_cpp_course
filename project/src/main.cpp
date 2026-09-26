@@ -92,9 +92,7 @@ void ProcessLog(const std::string& path, std::size_t window_size,
 
 
 int main(int argc, char** argv) {
-    // Аргументы разбираются грубо: путь к журналу и ничего больше. Остальное,
-    // включая --quiet, добавляется по заданию.
-
+    
     bool quiet = false;
     std::size_t window_size = 64;
     std::string path;

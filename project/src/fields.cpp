@@ -23,6 +23,7 @@ namespace{
     }
 }
 
+// возвращает nullptr, если поля нет. Это не ошибка, потому что есть необязательные поля. Вызыватель проверяет на nullptr.
 const std::string* FindField(const Event& event, const std::string& key){
     for (const Field& field: event.fields){
         if (field.key == key){
@@ -32,6 +33,7 @@ const std::string* FindField(const Event& event, const std::string& key){
     return nullptr;
 }
 
+// если нет поля, которое должно быть, функция бросает ошибку std::invalid_argument, так как отсутствие поля - нарушение формата
 const std::string& GetRequiredField(const Event& event, const std::string& key){
     const std::string* val = FindField(event, key);
     if (val == nullptr){
@@ -40,6 +42,8 @@ const std::string& GetRequiredField(const Event& event, const std::string& key){
     return *val;
 }
 
+// возвращает false, если строка пустая, или она содержит не цифры, или если происходит переполнение uint64_t. 
+// если строка - полностью число, влезающее в uint64_t, то оно пишется в *out с true
 bool GetIntField(const Event& event, const std::string& key, uint64_t* out){
     const std::string* value = FindField(event, key);
     if (value == nullptr || value->empty()){
@@ -61,6 +65,8 @@ bool GetIntField(const Event& event, const std::string& key, uint64_t* out){
 
 }
 
+// если поле некорректное, то об ошибке не сообщает, а возвращает fallback (значение по умолчанию)
+// это нужно для полей, у которых нормально отсутствие полей - типа ppid
 uint64_t GetIntField(const Event& event, const std::string& key, uint64_t fallback){
     uint64_t value = 0;
     if (GetIntField(event, key, &value)){
@@ -71,6 +77,7 @@ uint64_t GetIntField(const Event& event, const std::string& key, uint64_t fallba
 
 
 // предикаты
+
 bool IsProcessStart(const Event& event){
     return event.type == "process_start";
 }
@@ -83,6 +90,7 @@ bool IsNetConnect(const Event& event){
     return event.type == "net_connect";
 }
 
+// не сообщает об обшибках, любая строка приводится к одному виду в копию, не изменяя оригинал
 std::string NormalizePath(const std::string& path){
     std::string path_new;
     path_new.reserve(path.size());
