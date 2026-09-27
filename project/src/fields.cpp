@@ -2,6 +2,7 @@
 #include<stdexcept>
 #include<cstdint>
 #include<cctype>
+
 namespace nano_edr{
 
 namespace{
@@ -23,7 +24,7 @@ namespace{
     }
 }
 
-// возвращает nullptr, если поля нет. Это не ошибка, потому что есть необязательные поля. Вызыватель проверяет на nullptr.
+// возвращает nullptr, если поля нет. Это не ошибка, потому что есть необязательные поля. Вызывающий функции должен проверять на nullptr.
 const std::string* FindField(const Event& event, const std::string& key){
     for (const Field& field: event.fields){
         if (field.key == key){

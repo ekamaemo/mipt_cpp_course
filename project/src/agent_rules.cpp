@@ -1,5 +1,5 @@
 #include<agent_rules.h>
-#include "fields.h"
+#include <fields.h>
 
 namespace nano_edr {
 bool ImageEndsWith(const Event& event, const std::string& suffix) {
@@ -20,6 +20,8 @@ bool IsFileType(const Event& event){
 const std::string* FileRulePath(const Event& event){
     return event.type == "file_move"? FindField(event, "to") : FindField(event, "path");
 }
+
+// проверки из таблички
 
 bool IsScriptHostFromTemp(const Event& event){
     if (!IsProcessStart(event)){

@@ -1,11 +1,11 @@
 #include<event_list.h>
 namespace nano_edr {
-    void ListPushBack(EventList *list, const Event *event){
+    void ListPushBack(EventList* list, const Event* event){
         if (list->capacity > 0 && list->size == list->capacity){
             ListPopFront(list);
         }
 
-        EventNode *event_in_list = new EventNode;
+        EventNode *event_in_list = new EventNode();
         event_in_list -> event = *event;
         if (list->size == 0){
             list->head = event_in_list;
@@ -32,7 +32,7 @@ namespace nano_edr {
     }
 
     void ListClear(EventList* list){
-        while (list->size >0){
+        while (list->size > 0){
             ListPopFront(list);
         }
     }

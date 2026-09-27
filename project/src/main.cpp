@@ -17,7 +17,6 @@
 #include <string>
 #include <charconv>
 #include<map>
-#include<vector>
 
 #include "parse.h"
 #include "event_list.h"
@@ -72,7 +71,7 @@ void ProcessLog(const std::string& path, std::size_t window_size,
         ++lines;
 
         if (nano_edr::IsBlankOrComment(&line)){
-            comments++;
+            ++comments;
             continue;
         }
 
@@ -81,8 +80,8 @@ void ProcessLog(const std::string& path, std::size_t window_size,
             continue;
         }
 
-        total++;
-        types[event.type]++;
+        ++total;
+        ++types[event.type];
         nano_edr::CheckRules(event, rules, rule_count);
 
         nano_edr::ListPushBack(&window_events, &event);
