@@ -13,6 +13,7 @@
 //   nano-edr <журнал.log>
 #include <cstdio>
 #include <fstream>
+#include <mutex>
 #include <print>
 #include <string>
 #include <charconv>
@@ -60,8 +61,21 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
     return true;
 }
 
+struct Guard 
+{
+    Guard()
+{
+ node = new nano_edr::EventNode();
+}
+    ~Guard(){
+        delete node;
+    }
 
-void ProcessLog(const std::string& path, std::size_t window_size,
+    nano_edr::EventNode* node = nullptr;
+};
+
+
+void ProcessLog(const std::string& path, std::size_t window_size, bool quiet,
                 long long& lines,
                 long long& comments, 
                 long long& total, std::unordered_map<std::string, unsigned>& types){
@@ -70,10 +84,17 @@ void ProcessLog(const std::string& path, std::size_t window_size,
     nano_edr::EventList window_events;
     window_events.capacity = window_size;
 
+    {
+        auto node = new nano_edr::EventNode();
+        Guard guard;
+    }
+
     const nano_edr::Rule* rules = nano_edr::AgentRules();
     const std::size_t rule_count = nano_edr::AgentRuleCount();
 
     std::string line;
+    nano_edr::Event* prev_prev_event = nullptr;
+    
     while (std::getline(log, line)) {
         ++lines;
 
@@ -89,7 +110,30 @@ void ProcessLog(const std::string& path, std::size_t window_size,
 
         ++total;
         ++types[event.type];
-        nano_edr::CheckRules(event, rules, rule_count);
+        size_t n = nano_edr::CheckRules(event, rules, rule_count);
+        if (n != 0 && !quiet){
+            if (prev_prev_event != nullptr && window_size >= 2){
+                std::print(
+                    "[CTX] {}: ts={} type={} pid={}\n",
+                    -2,
+                    prev_prev_event->ts,
+                    prev_prev_event->type,
+                    prev_prev_event->pid
+                    );
+            }
+            
+            if (window_events.tail != nullptr){
+                std::print(
+                    "[CTX] {}: ts={} type={} pid={}\n",
+                    -1,
+                    window_events.tail->event.ts,
+                    window_events.tail->event.type,
+                    window_events.tail->event.pid
+                    );
+            }
+        }
+        prev_prev_event = &(window_events.tail->event);
+
 
         nano_edr::ListPushBack(&window_events, &event);
 
@@ -112,7 +156,7 @@ int main(int argc, char** argv) {
 
         std::unordered_map<std::string, unsigned> types;
         
-        ProcessLog(path, window_size, lines, comments, total, types);
+        ProcessLog(path, window_size, quiet, lines, comments, total, types);
         
         if (!quiet) {
             std::print("Всего событий: {}, комментариев: {}\n", total, comments);
