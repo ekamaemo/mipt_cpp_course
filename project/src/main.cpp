@@ -16,7 +16,7 @@
 #include <print>
 #include <string>
 #include <charconv>
-#include<map>
+#include<unordered_map>
 
 #include "parse.h"
 #include "event_list.h"
@@ -31,6 +31,13 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
         return false;
     }
     path = argv[1];
+        // проверка, что лог открывается
+    std::ifstream log(path);
+    if (!log) {
+        std::print(stderr, "не удалось открыть журнал: {}\n", argv[1]);
+        return false;
+    }
+
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
             quiet= true;
@@ -57,7 +64,7 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
 void ProcessLog(const std::string& path, std::size_t window_size,
                 long long& lines,
                 long long& comments, 
-                long long& total, std::map<std::string, unsigned>& types){
+                long long& total, std::unordered_map<std::string, unsigned>& types){
     std::ifstream log(path);
 
     nano_edr::EventList window_events;
@@ -91,38 +98,32 @@ void ProcessLog(const std::string& path, std::size_t window_size,
 
 
 int main(int argc, char** argv) {
-    
-    bool quiet = false;
-    std::size_t window_size = 64;
-    std::string path;
-    if (!ParseArgs(argc, argv, quiet, window_size, path)){
-        return 2;
-    }
-    
-    // проверка, что лог открывается
-    std::ifstream log(argv[1]);
-    if (!log) {
-        std::print(stderr, "не удалось открыть журнал: {}\n", argv[1]);
-        return 2;
-    }
-
-    long long lines = 0;
-    long long comments = 0;
-    long long total = 0;
-
-    std::map<std::string, unsigned> types;
     try {
+        bool quiet = false;
+        std::size_t window_size = 64;
+        std::string path;
+        if (!ParseArgs(argc, argv, quiet, window_size, path)){
+            return 2;
+        }
+        
+        long long lines = 0;
+        long long comments = 0;
+        long long total = 0;
+
+        std::unordered_map<std::string, unsigned> types;
+        
         ProcessLog(path, window_size, lines, comments, total, types);
-    } catch (const std::exception& error){
+        
+        if (!quiet) {
+            std::print("Всего событий: {}, комментариев: {}\n", total, comments);
+            for (const auto& [type, count] : types) {
+                std::print(" {}: {}\n", type, count);
+            }
+        }
+        return 0;
+
+    } catch (const std::exception& error) {
         std::print(stderr, "error: {}\n", error.what());
         return 1;
     }
-
-    if (!quiet) {
-        std::print("Всего событий: {}, комментариев: {}\n", total, comments);
-        for (const auto& [type, count] : types) {
-            std::print(" {}: {}\n", type, count);
-        }
-    }
-    return 0;
 }
