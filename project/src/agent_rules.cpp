@@ -12,13 +12,13 @@ bool ImageEndsWith(const Event& event, const std::string& suffix) {
 }
 
 bool IsFileType(const Event& event){
-    return event.type == "file_create"
-        || event.type == "file_write"
-        || event.type == "file_move";
+    return event.type() == "file_create"
+        || event.type() == "file_write"
+        || event.type() == "file_move";
 }
 
 const std::string* FileRulePath(const Event& event){
-    return event.type == "file_move"? FindField(event, "to") : FindField(event, "path");
+    return event.type() == "file_move"? FindField(event, "to") : FindField(event, "path");
 }
 
 // проверки из таблички
