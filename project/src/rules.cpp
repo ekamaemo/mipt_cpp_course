@@ -1,33 +1,33 @@
-#include<rules.h>
-#include<iostream>
+#include <rules.h>
+#include <print>
+
 
 namespace nano_edr {
 
-const char* SeverityName(Severity severity){
+const char* SeverityName(Severity severity) {
     switch (severity) {
-        case Severity::kCritical : return "critical";
-        case Severity::kHigh : return "high";
-        case Severity::kLow : return "low";
-        case Severity::kMedium : return "medium";
+        case Severity::kCritical: return "critical";
+        case Severity::kHigh: return "high";
+        case Severity::kLow: return "low";
+        case Severity::kMedium: return "medium";
     }
     return "?";
 }
 
-size_t CheckRules(const Event& event, const Rule* rules, size_t rule_count){
-    size_t count = 0;
-    for (size_t i = 0; i < rule_count; ++i){
+std::size_t CheckRules(const Event& event, const Rule* rules, std::size_t rule_count) {
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < rule_count; ++i) {
         const Rule& rule = rules[i];
         if (rule.check(event)) {
-            std::cout << "[DETECT] " << SeverityName(rule.severity)
-                      << "  " << rule.id
-                      << "  ts=" << event.raw_ts()
-                      << " pid=" << event.pid()
-                      << "\n";
+            std::print("[DETECT] {}  {}  ts={} pid={}\n",
+                       SeverityName(rule.severity),
+                       rule.id,
+                       event.raw_ts(),
+                       event.pid());
             ++count;
         }
     }
-
     return count;
 }
 
-}
+}  // namespace nano_edr

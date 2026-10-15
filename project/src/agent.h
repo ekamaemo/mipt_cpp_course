@@ -1,22 +1,29 @@
-#include<event_list.h>
+#include <event_list.h>
+#include <unordered_map>
+#include "os_handle.h"
 
-namespace nano_edr{
+namespace nano_edr {
 
 class Agent {
  public:
-    Agent(std::size_t window_size, bool quiet);  // из --window-size и --quiet
+    Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), total_(0), comments_(0){};  // из --window-size и --quiet
     void HandleEvent(const Event& event);
-    void PrintSummary() const;  // сводка в конце прогона
-    // ...
- private:
-    EventList window_;  // последние события, не больше window_size
-    // счётчики для сводки
-};
+    void PrintSummary() const;
+    void CountComment();
+    void CountMalformed();
+    void CountRejected();
+    static void Trampoline(const os_event* ev, void* ctx) noexcept;
 
-class FileSource {
- public:
-    explicit FileSource(const std::string& path);
-    void Run(Agent* agent);  // строка → EventParts → Event → HandleEvent
-    // ...
+ private:
+    EventList window_;
+    bool quiet_ = false;
+    size_t total_ = 0;
+    size_t comments_ = 0;
+    size_t rejected_ = 0;
+    size_t malformed_ = 0;
+    std::optional<Event> prev_prev_event_;
+    std::unordered_map<std::string, unsigned> types_;
+    void HandleOsEvent(const os_event* ev);
+    void PrintContext() const;
 };
-}
+}  // namespace nano_edr
