@@ -20,7 +20,9 @@
 #include <print>
 #include <string>
 
-#include "sources.h"
+#include "file_source.h"
+#include "os_source.h"
+
 
 bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std::string& path, bool& file_mode) {
     if (argc < 2) {

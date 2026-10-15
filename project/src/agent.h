@@ -1,3 +1,4 @@
+#pragma once
 #include <event_list.h>
 #include <unordered_map>
 #include "os_handle.h"
@@ -21,7 +22,7 @@ class Agent {
     size_t comments_ = 0;
     size_t rejected_ = 0;
     size_t malformed_ = 0;
-    std::optional<Event> prev_prev_event_;
+    const Event* prev_prev_event_ = nullptr;
     std::unordered_map<std::string, unsigned> types_;
     void HandleOsEvent(const os_event* ev);
     void PrintContext() const;

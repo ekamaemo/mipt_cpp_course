@@ -20,7 +20,7 @@ void Agent::HandleEvent(const Event& event) {
         PrintContext();
     }
     if (!window_.empty()) {
-        prev_prev_event_ = window_.back()->event;
+        prev_prev_event_ = &window_.back()->event;
     }
 
     window_.PushBack(event);
@@ -55,9 +55,9 @@ void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
         Agent* agent = static_cast<Agent*>(ctx);
         agent->HandleOsEvent(ev);
     } catch (const std::exception& error) {
-        std::cerr << "Error reason: " << error.what() << "\n";
+        std::print(stderr, "Error reason: {}\n", error.what());
     } catch (...) {
-        std::cerr << "Unknown error reason\n";
+        std::print(stderr, "Unknown error reason\n");
     }
 }
 
@@ -74,12 +74,17 @@ void Agent::HandleOsEvent(const os_event* ev) {
             kv.value != nullptr ? kv.value : ""});
     }
 
-    Event event(parts);
-    HandleEvent(event);
+    try {
+        Event event(parts);
+        HandleEvent(event);
+    } catch (const std::exception&) {
+        CountRejected();  
+        throw;             
+    }
 }
 
 void Agent::PrintContext() const{
-    if (prev_prev_event_.has_value()) {
+    if (prev_prev_event_ != nullptr) {
         std::print(
             "[CTX] {}: ts={} type={} pid={}\n",
             -2,
