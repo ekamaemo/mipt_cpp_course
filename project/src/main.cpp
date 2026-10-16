@@ -11,38 +11,29 @@
 //
 // Запуск:
 //   nano-edr <журнал.log>
+#include <agent_rules.h>
+#include <os_handle.h>
+#include <rules.h>
+
+#include <charconv>
 #include <cstdio>
-#include <fstream>
-#include <mutex>
 #include <print>
 #include <string>
-#include <charconv>
-#include<unordered_map>
 
-#include "parse.h"
-#include "event_list.h"
-#include<rules.h>
-#include<agent_rules.h>
+#include "file_source.h"
+#include "os_source.h"
 
 
-bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std::string& path){
-
+bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std::string& path, bool& file_mode) {
     if (argc < 2) {
         std::print(stderr, "использование: nano-edr <журнал.log>\n");
         return false;
     }
-    path = argv[1];
-        // проверка, что лог открывается
-    std::ifstream log(path);
-    if (!log) {
-        std::print(stderr, "не удалось открыть журнал: {}\n", argv[1]);
-        return false;
-    }
 
-    for (int i = 0; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
-            quiet= true;
-        } else if (std::string(argv[i])=="--window-size"){
+            quiet = true;
+        } else if (std::string(argv[i]) == "--window-size") {
             if (i + 1 >= argc) {
                 std::print(stderr, "ошибка: после --window-size нужно указать число\n");
                 return false;
@@ -50,122 +41,68 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
             std::string value = argv[++i];
             std::size_t parsed = 0;
             auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
-            if (result.ec != std::errc{} || result.ptr != value.data() + value.size()){
-                std::print(stderr, "ошибка: --window-size требует целое число");
+            if (result.ec != std::errc{} || result.ptr != value.data() + value.size()) {
+                std::print(stderr, "ошибка: --window-size требует целое число\n");
                 return false;
             }
             window_size = parsed;
+        } else if (std::string(argv[i]) == "--file") {
+            if (file_mode) {
+                std::print(stderr, "--file задан дважды\n");
+                return false;
+            }
+            if (!path.empty()) {
+                std::print(stderr, "путь задан дважды\n");
+                return false;
+            }
+            if (i + 1 >= argc) {
+                std::print(stderr, "ошибка: после --file нужен путь\n");
+                return false;
+            }
+            file_mode = true;
+            path = argv[++i];
+        } else if (std::string(argv[i]).starts_with("--")) {
+            std::print(stderr, "неизвестная опция: {}\n", std::string(argv[i]));
+            return false;
+        } else {
+            if (!path.empty()) {
+                std::print(stderr, "путь задан дважды\n");
+                return false;
+            }
+            path = std::string(argv[i]);
         }
+    }
+
+    if (path.empty()) {
+        std::print(stderr, "не указан путь\n");
+        return false;
     }
 
     return true;
 }
-
-struct Guard 
-{
-    Guard()
-{
- node = new nano_edr::EventNode();
-}
-    ~Guard(){
-        delete node;
-    }
-
-    nano_edr::EventNode* node = nullptr;
-};
-
-
-void ProcessLog(const std::string& path, std::size_t window_size, bool quiet,
-                long long& lines,
-                long long& comments, 
-                long long& total, std::unordered_map<std::string, unsigned>& types){
-    std::ifstream log(path);
-
-    nano_edr::EventList window_events;
-    window_events.capacity = window_size;
-
-    {
-        auto node = new nano_edr::EventNode();
-        Guard guard;
-    }
-
-    const nano_edr::Rule* rules = nano_edr::AgentRules();
-    const std::size_t rule_count = nano_edr::AgentRuleCount();
-
-    std::string line;
-    nano_edr::Event* prev_prev_event = nullptr;
-    
-    while (std::getline(log, line)) {
-        ++lines;
-
-        if (nano_edr::IsBlankOrComment(&line)){
-            ++comments;
-            continue;
-        }
-
-        nano_edr::Event event;
-        if (!nano_edr::ParseEventLine(&line, &event)){
-            continue;
-        }
-
-        ++total;
-        ++types[event.type];
-        size_t n = nano_edr::CheckRules(event, rules, rule_count);
-        if (n != 0 && !quiet){
-            if (prev_prev_event != nullptr && window_size >= 2){
-                std::print(
-                    "[CTX] {}: ts={} type={} pid={}\n",
-                    -2,
-                    prev_prev_event->ts,
-                    prev_prev_event->type,
-                    prev_prev_event->pid
-                    );
-            }
-            
-            if (window_events.tail != nullptr){
-                std::print(
-                    "[CTX] {}: ts={} type={} pid={}\n",
-                    -1,
-                    window_events.tail->event.ts,
-                    window_events.tail->event.type,
-                    window_events.tail->event.pid
-                    );
-            }
-        }
-        prev_prev_event = &(window_events.tail->event);
-
-
-        nano_edr::ListPushBack(&window_events, &event);
-
-    }
-}
-
 
 int main(int argc, char** argv) {
     try {
         bool quiet = false;
         std::size_t window_size = 64;
         std::string path;
-        if (!ParseArgs(argc, argv, quiet, window_size, path)){
+        bool file_mode = false;
+
+        if (!ParseArgs(argc, argv, quiet, window_size, path, file_mode)) {
             return 2;
         }
-        
-        long long lines = 0;
-        long long comments = 0;
-        long long total = 0;
 
-        std::unordered_map<std::string, unsigned> types;
-        
-        ProcessLog(path, window_size, quiet, lines, comments, total, types);
-        
-        if (!quiet) {
-            std::print("Всего событий: {}, комментариев: {}\n", total, comments);
-            for (const auto& [type, count] : types) {
-                std::print(" {}: {}\n", type, count);
-            }
+        nano_edr::Agent agent(window_size, quiet);
+        if (file_mode) {
+            nano_edr::FileSource source(path);
+            source.Run(&agent);
+        } else {
+            nano_edr::OsSource source(path);
+            source.Run(&agent);
         }
-        return 0;
+        agent.PrintSummary();
 
+        return 0;
     } catch (const std::exception& error) {
         std::print(stderr, "error: {}\n", error.what());
         return 1;
