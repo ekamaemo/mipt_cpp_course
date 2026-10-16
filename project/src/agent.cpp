@@ -8,6 +8,21 @@
 #include "rules.h"
 
 namespace nano_edr {
+    
+EventParts ConvertOsEvent(const os_event* ev) {
+    EventParts parts;
+    parts.ts = std::to_string(ev->ts);
+    parts.type = ev->type != nullptr ? ev->type : "";
+    parts.pid = (ev->pid != 0) ? std::to_string(ev->pid) : "";
+
+    for (std::size_t i = 0; i < ev->field_count; ++i) {
+        const os_kv& kv = ev->fields[i];
+        parts.fields.push_back(Field{
+            kv.key != nullptr ? kv.key : "",
+            kv.value != nullptr ? kv.value : ""});
+    }
+    return parts;
+}
 
 void Agent::HandleEvent(const Event& event) {
     const nano_edr::Rule* rules = AgentRules();
@@ -51,35 +66,17 @@ void Agent::CountMalformed() {
 
 
 void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
+    Agent* agent = static_cast<Agent*>(ctx);
     try {
-        Agent* agent = static_cast<Agent*>(ctx);
-        agent->HandleOsEvent(ev);
+        EventParts parts = ConvertOsEvent(ev);
+        Event event(parts);
+        agent->HandleEvent(event);
     } catch (const std::exception& error) {
+        agent->CountRejected();
         std::print(stderr, "Error reason: {}\n", error.what());
     } catch (...) {
+        agent->CountRejected();
         std::print(stderr, "Unknown error reason\n");
-    }
-}
-
-void Agent::HandleOsEvent(const os_event* ev) {
-    EventParts parts;
-    parts.ts = std::to_string(ev->ts);
-    parts.type = ev->type != nullptr ? ev->type : "";
-    parts.pid = (ev->pid != 0) ? std::to_string(ev->pid) : "";
-
-    for (std::size_t i = 0; i < ev->field_count; ++i) {
-        const os_kv& kv = ev->fields[i];
-        parts.fields.push_back(Field{
-            kv.key != nullptr ? kv.key : "",
-            kv.value != nullptr ? kv.value : ""});
-    }
-
-    try {
-        Event event(parts);
-        HandleEvent(event);
-    } catch (const std::exception&) {
-        CountRejected();  
-        throw;             
     }
 }
 

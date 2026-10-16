@@ -4,6 +4,8 @@
 #include "os_handle.h"
 
 namespace nano_edr {
+   
+EventParts ConvertOsEvent(const os_event* ev);
 
 class Agent {
  public:
@@ -24,7 +26,6 @@ class Agent {
     size_t malformed_ = 0;
     const Event* prev_prev_event_ = nullptr;
     std::unordered_map<std::string, unsigned> types_;
-    void HandleOsEvent(const os_event* ev);
     void PrintContext() const;
 };
 }  // namespace nano_edr
