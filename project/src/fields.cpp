@@ -8,17 +8,6 @@
 
 namespace nano_edr {
 
-namespace {
-
-void ReplacePart(std::string& str, const std::string& from, const std::string& to) {
-    std::size_t start_pos = str.find(from);
-    if (start_pos != std::string::npos) {
-        str.replace(start_pos, from.size(), to);
-    }
-}
-
-}  // namespace
-
 // возвращает nullptr, если поля нет. Это не ошибка, потому что есть
 // необязательные поля. Вызывающий должен проверять на nullptr.
 const std::string* FindField(const Event& event, const std::string& key) {
@@ -85,33 +74,13 @@ bool IsNetConnect(const Event& event) {
     return event.type() == "net_connect";
 }
 
-std::string NormalizePath(const std::string& path) {
-    std::string path_new;
-    path_new.reserve(path.size());
-    for (char c : ToLower(path)) {
-        if (c == '/' || c == '\\') {
-            if (path_new.empty() || path_new.back() != '\\') {
-                path_new.push_back('\\');
-            }
-        } else {
-            path_new.push_back(c);
-        }
-    }
-
-    ReplacePart(path_new, "%temp%", "\\appdata\\local\\temp");
-    ReplacePart(path_new, "%tmp%", "\\appdata\\local\\temp");
-    return path_new;
-}
 
 bool PathEndsWith(const Event& event, const std::string& suffix) {
     const std::string* path = FindField(event, "path");
     if (path == nullptr) {
         return false;
     }
-
-    std::string normal_path = NormalizePath(*path);
-    std::string normal_suffix = NormalizePath(suffix);
-    return normal_path.ends_with(normal_suffix);
+    return EndsWithIgnoreCase(*path, suffix);
 }
 
 bool CommandLineContains(const Event& event, const std::string& needle) {
@@ -119,8 +88,7 @@ bool CommandLineContains(const Event& event, const std::string& needle) {
     if (cmdline == nullptr) {
         return false;
     }
-    std::string normal_cmdline = NormalizePath(*cmdline);
-    return normal_cmdline.find(NormalizePath(needle)) != std::string::npos;
+    return ContainsIgnoreCase(*cmdline, needle);
 }
 
 }  // namespace nano_edr

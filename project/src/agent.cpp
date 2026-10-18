@@ -25,22 +25,22 @@ EventParts ConvertOsEvent(const os_event* ev) {
 }
 
 void Agent::HandleEvent(const Event& event) {
-    std::size_t count = 0;
+    bool contextPrinted = false;
     for (std::size_t i = 0; i < rules_.size(); ++i){
         if (rules_[i].Check(event)){
+            if (!contextPrinted && !quiet_){
+                PrintContext();
+                contextPrinted = true;
+            }
             std::print("[DETECT] {}  {}  ts={} pid={}\n",
                        SeverityName(rules_[i].severity()),
                        rules_[i].id(),
                        event.raw_ts(),
                        event.pid());
-            ++count;
         }
     }
     ++total_;
     ++types_[event.type()];
-    if (count != 0 && !quiet_){
-        PrintContext();
-    }
     if (!window_.empty()) {
         prev_prev_event_ = &window_.back()->event;
     }
@@ -58,7 +58,7 @@ void Agent::PrintSummary() const {
     }
 
     std::print("правила, детектов:\n");
-    for (MatchRule rule: rules_){
+    for (const MatchRule& rule: rules_){
         std::print(" {}  {}\n", rule.id(), rule.hits());
     }
 }

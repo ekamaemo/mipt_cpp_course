@@ -88,5 +88,6 @@ bool Condition::operator()(const Event& event) const {
             return false;
         }
     }
+    return false;
 }
 }
