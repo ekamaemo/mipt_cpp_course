@@ -7,6 +7,16 @@
 #include "text.h"
 
 namespace nano_edr {
+namespace {
+std::string LowerString(const std::string& str) {
+    std::string res;
+    res.reserve(str.size());
+    for (char c : str) {
+        res.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    return res;
+}
+}
 
 // возвращает nullptr, если поля нет. Это не ошибка, потому что есть
 // необязательные поля. Вызывающий должен проверять на nullptr.
@@ -89,6 +99,20 @@ bool CommandLineContains(const Event& event, const std::string& needle) {
         return false;
     }
     return ContainsIgnoreCase(*cmdline, needle);
+}
+
+std::string NormalizePath(const std::string& path) {
+    std::string path_new;
+    path_new.reserve(path.size());
+    for (char c : LowerString(path)) {
+        if (c == '/' || c == '\\') {
+            if (path_new.empty() || path_new.back() != '\\') {
+                path_new.push_back('\\');
+            }
+        } else {
+            path_new.push_back(c);
+        }
+    }
 }
 
 }  // namespace nano_edr
