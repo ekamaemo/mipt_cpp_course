@@ -2,6 +2,8 @@
 #include <event_list.h>
 #include <unordered_map>
 #include "os_handle.h"
+#include "rule.h"
+#include "agent_rules.h"
 
 namespace nano_edr {
    
@@ -9,7 +11,7 @@ EventParts ConvertOsEvent(const os_event* ev);
 
 class Agent {
  public:
-    Agent(std::size_t window_size, bool quiet) : window_(window_size), quiet_(quiet), total_(0), comments_(0){};  // из --window-size и --quiet
+    Agent(std::size_t window_size, bool quiet) : window_(window_size), rules_(BuildAgentRules()), quiet_(quiet), total_(0), comments_(0){};  // из --window-size и --quiet
     void HandleEvent(const Event& event);
     void PrintSummary() const;
     void CountComment();
@@ -19,6 +21,7 @@ class Agent {
 
  private:
     EventList window_;
+    std::vector<MatchRule> rules_;
     bool quiet_ = false;
     size_t total_ = 0;
     size_t comments_ = 0;

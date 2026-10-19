@@ -25,19 +25,25 @@ EventParts ConvertOsEvent(const os_event* ev) {
 }
 
 void Agent::HandleEvent(const Event& event) {
-    const nano_edr::Rule* rules = AgentRules();
-    const std::size_t rule_count = nano_edr::AgentRuleCount();
-
+    bool contextPrinted = false;
+    for (std::size_t i = 0; i < rules_.size(); ++i){
+        if (rules_[i].Check(event)){
+            if (!contextPrinted && !quiet_){
+                PrintContext();
+                contextPrinted = true;
+            }
+            std::print("[DETECT] {}  {}  ts={} pid={}\n",
+                       SeverityName(rules_[i].severity()),
+                       rules_[i].id(),
+                       event.raw_ts(),
+                       event.pid());
+        }
+    }
     ++total_;
     ++types_[event.type()];
-    std::size_t n = nano_edr::CheckRules(event, rules, rule_count);
-    if (n != 0 && !quiet_) {
-        PrintContext();
-    }
     if (!window_.empty()) {
         prev_prev_event_ = &window_.back()->event;
     }
-
     window_.PushBack(event);
 }
 
@@ -49,6 +55,11 @@ void Agent::PrintSummary() const {
     std::print("Битых строк: {}, отвергнутых событий: {}\n", malformed_, rejected_);
     for (const auto& [type, count] : types_) {
         std::print(" {}: {}\n", type, count);
+    }
+
+    std::print("правила, детектов:\n");
+    for (const MatchRule& rule: rules_){
+        std::print(" {}  {}\n", rule.id(), rule.hits());
     }
 }
 

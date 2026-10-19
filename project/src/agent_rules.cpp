@@ -1,99 +1,82 @@
-#include <agent_rules.h>
-#include <fields.h>
+#include "agent_rules.h"
 
 namespace nano_edr {
-namespace{
-bool ImageEndsWith(const Event& event, const std::string& suffix) {
-    const std::string image = NormalizePath(GetRequiredField(event, "image"));
-    const std::string normal_suf = NormalizePath(suffix);
-    if (normal_suf.size() > image.size()) {
-        return false;
-    }
-    return image.ends_with(normal_suf);
+namespace {
+
+MatchRule MakeScriptHostFromTempRule() {
+    MatchRule rule("script_host_from_temp", Severity::kHigh);
+    rule.AddCondition(Condition::Equals("type", {"process_start"}));
+    rule.AddCondition(Condition::EndsWith("image", {"wscript.exe", "cscript.exe"}));
+    rule.AddCondition(Condition::Contains("cmdline", {
+        "\\appdata\\local\\temp\\", "/appdata/local/temp/",
+        "\\windows\\temp\\", "/windows/temp/",
+        "%temp%", "%tmp%"}));
+    rule.AddAction("kill_process");
+    return rule;
 }
 
-bool IsFileType(const Event& event) {
-    return event.type() == "file_create" || event.type() == "file_write" || event.type() == "file_move";
+MatchRule MakeLolbinDownloadRule() {
+    MatchRule rule("lolbin_download", Severity::kHigh);
+    rule.AddCondition(Condition::Equals("type", {"process_start"}));
+    rule.AddCondition(Condition::EndsWith("image", {"certutil.exe", "bitsadmin.exe"}));
+    rule.AddCondition(Condition::Contains("cmdline", {"urlcache", "transfer", "http:", "https:"}));
+    rule.AddAction("kill_process");
+    return rule;
 }
 
-const std::string* FileRulePath(const Event& event) {
-    return event.type() == "file_move" ? FindField(event, "to") : FindField(event, "path");
+MatchRule MakeHiddenPowershellRule() {
+    MatchRule rule("hidden_powershell", Severity::kMedium); 
+    rule.AddCondition(Condition::Equals("type", {"process_start"}));
+    rule.AddCondition(Condition::EndsWith("image", {"powershell.exe", "pwsh.exe"}));
+    rule.AddCondition(Condition::Contains("cmdline", {"-w hidden", "-windowstyle hidden", "-enc", "-encodedcommand"}));
+    rule.AddAction("kill_process");
+    return rule;
 }
 
-// проверки из таблички
-
-bool IsScriptHostFromTemp(const Event& event) {
-    if (!IsProcessStart(event)) {
-        return false;
-    }
-
-    if (!ImageEndsWith(event, "wscript.exe") && !ImageEndsWith(event, "cscript.exe")) {
-        return false;
-    }
-
-    return CommandLineContains(event, "\\appdata\\local\\temp") || CommandLineContains(event, "\\windows\\temp");
+MatchRule MakeAutostartWriteByPathRule() {
+    MatchRule rule("autostart_write", Severity::kHigh);
+    rule.AddCondition(Condition::Equals("type", {"file_create", "file_write"}));
+    rule.AddCondition(Condition::Contains("path", {"\\start menu\\programs\\startup\\", "/start menu/programs/startup/"}));
+    rule.AddAction("quarantine_file");
+    return rule;
 }
 
-bool IsLolbinDownload(const Event& event) {
-    if (!IsProcessStart(event)) {
-        return false;
-    }
-    if (!ImageEndsWith(event, "certutil.exe") && !ImageEndsWith(event, "bitsadmin.exe")) {
-        return false;
-    }
-
-    return CommandLineContains(event, "urlcache") || CommandLineContains(event, "transfer") || CommandLineContains(event, "http:") || CommandLineContains(event, "https:");
+MatchRule MakeAutostartWriteByToRule() {
+    MatchRule rule("autostart_write", Severity::kHigh);
+    rule.AddCondition(Condition::Equals("type", {"file_move"}));
+    rule.AddCondition(Condition::Contains("to", {"\\start menu\\programs\\startup\\", "/start menu/programs/startup/"}));
+    rule.AddAction("quarantine_file");
+    return rule;
 }
 
-bool IsHiddenPowershell(const Event& event) {
-    if (!IsProcessStart(event)) {
-        return false;
-    }
-    if (!ImageEndsWith(event, "powershell.exe") && !ImageEndsWith(event, "pwsh.exe")) {
-        return false;
-    }
-    return CommandLineContains(event, "-w hidden") || CommandLineContains(event, "-windowstyle hidden") || CommandLineContains(event, "-enc") || CommandLineContains(event, "-encodedcommand");
+MatchRule MakeRansomExtensionByPathRule() {
+    MatchRule rule("ransom_extension", Severity::kCritical);
+    rule.AddCondition(Condition::Equals("type", {"file_create", "file_write"}));
+    rule.AddCondition(Condition::EndsWith("path", {".locked"}));
+    rule.AddAction("quarantine_file");
+    return rule;
 }
 
-bool IsAutostartWrite(const Event& event) {
-    if (!IsFileType(event)) {
-        return false;
-    }
-
-    const std::string* path = FileRulePath(event);
-    if (path == nullptr) {
-        return false;
-    }
-    const std::string normal_path = NormalizePath(*path);
-    return normal_path.find("\\start menu\\programs\\startup\\") != std::string::npos;
+MatchRule MakeRansomExtensionByToRule() {
+    MatchRule rule("ransom_extension", Severity::kCritical);
+    rule.AddCondition(Condition::Equals("type", {"file_move"}));
+    rule.AddCondition(Condition::EndsWith("to", {".locked"}));
+    rule.AddAction("quarantine_file");
+    return rule;
 }
 
-bool IsRansomExtension(const Event& event) {
-    if (!IsFileType(event)) {
-        return false;
-    }
+}  // namespace
 
-    const std::string* path = FileRulePath(event);
-    if (path == nullptr) {
-        return false;
-    }
-    const std::string normal_path = NormalizePath(*path);
-    return normal_path.ends_with(".locked");
-}
-} // закрытие анонимного намеспасе
-constexpr Rule kRules[]{
-    {"script_host_from_temp", IsScriptHostFromTemp, Severity::kHigh},
-    {"lolbin_download", IsLolbinDownload, Severity::kHigh},
-    {"hidden_powershell", IsHiddenPowershell, Severity::kMedium},
-    {"autostart_write", IsAutostartWrite, Severity::kHigh},
-    {"ransom_extension", IsRansomExtension, Severity::kCritical},
-};
-
-const Rule* AgentRules() {
-    return kRules;
+std::vector<MatchRule> BuildAgentRules() {
+    return {
+        MakeScriptHostFromTempRule(),
+        MakeLolbinDownloadRule(),
+        MakeHiddenPowershellRule(),
+        MakeAutostartWriteByPathRule(),
+        MakeAutostartWriteByToRule(),
+        MakeRansomExtensionByPathRule(),
+        MakeRansomExtensionByToRule()
+    };
 }
 
-size_t AgentRuleCount() {
-    return sizeof(kRules) / sizeof(kRules[0]);
-}
 }  // namespace nano_edr
