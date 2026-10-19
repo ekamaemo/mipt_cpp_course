@@ -3,7 +3,7 @@
 #include "fields.h"
 
 namespace nano_edr {
-bool FieldEquals::operator()(const Event& event) const{
+bool FieldEquals::Matches(const Event& event) const{
     const std::string* v = FindField(event, key_);
     if (v == nullptr) {
         return false;
@@ -12,7 +12,7 @@ bool FieldEquals::operator()(const Event& event) const{
 }
 
 
-bool FieldContains::operator()(const Event& event) const{
+bool FieldContains::Matches(const Event& event) const{
     const std::string* v = FindField(event, key_);
     if (v == nullptr){
         return false;
@@ -20,7 +20,7 @@ bool FieldContains::operator()(const Event& event) const{
     return ContainsIgnoreCase(*v, needle_);
 }
 
-bool FieldEndsWith::operator()(const Event& event) const {
+bool FieldEndsWith::Matches(const Event& event) const {
     const std::string* v = FindField(event, key_);
     if (v == nullptr) {
         return false;
@@ -29,7 +29,7 @@ bool FieldEndsWith::operator()(const Event& event) const {
 }
 
 
-bool FieldInList::operator()(const Event& event) const{
+bool FieldInList::Matches(const Event& event) const{
     const std::string* v = FindField(event, key_);
     if (v == nullptr) {
         return false;
@@ -42,50 +42,36 @@ bool FieldInList::operator()(const Event& event) const{
     return false;
 }
 
-
-Condition Condition::Equals(const std::string& key, const std::vector<std::string>& values){
-    return Condition(Match::kEquals, key, values);
-}
-
-Condition Condition::Contains(const std::string& key, const std::vector<std::string>& values){
-    return Condition(Match::kContains, key, values);
-}
-
-Condition Condition::EndsWith(const std::string& key, const std::vector<std::string>& values){
-    return Condition(Match::kEndsWith, key, values);
-}
-
-bool Condition::operator()(const Event& event) const {
-    const std::string *v = FindField(event, key_);
-    if (v == nullptr){
-        return false;
+bool EventTypeIs::Matches(const Event& event) const{
+    for (const EventType& type: types_){
+        if (event.event_type() == type){
+            return true;
+        }
     }
-    switch (match_){
-        case Match::kEquals : {
-            for (const std::string& value: values_){
-                if (EqualsIgnoreCase(*v, value)){
-                    return true;
-                }
-            }
+    return false;
+}
+
+void AllOf::Add(std::unique_ptr<ICondition> condition){
+    parts_.push_back(std::move(condition));
+}
+
+void AnyOf::Add(std::unique_ptr<ICondition> condition) {
+    parts_.push_back(std::move(condition));
+}
+
+bool AllOf::Matches(const Event& event) const {
+    for (size_t i = 0; i < size(); ++i){
+        if (!parts_[i]->Matches(event)){
             return false;
         }
+    }
+    return true;
+}
 
-        case Match::kContains : {
-            for (const std::string& value: values_){
-                if (ContainsIgnoreCase(*v, value)){
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        case Match::kEndsWith : {
-            for (const std::string& value: values_){
-                if (EndsWithIgnoreCase(*v, value)){
-                    return true;
-                }
-            }
-            return false;
+bool AnyOf::Matches(const Event& event) const {
+    for (size_t i = 0; i < size(); ++i){
+        if (parts_[i]->Matches(event)){
+            return true;
         }
     }
     return false;

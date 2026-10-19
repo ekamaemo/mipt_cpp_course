@@ -22,6 +22,7 @@
 
 #include "file_source.h"
 #include "os_source.h"
+#include "agent.h"
 
 
 bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std::string& path, bool& file_mode) {
@@ -93,13 +94,13 @@ int main(int argc, char** argv) {
         }
 
         nano_edr::Agent agent(window_size, quiet);
+        std::unique_ptr<nano_edr::IEventSource> source;
         if (file_mode) {
-            nano_edr::FileSource source(path);
-            source.Run(&agent);
+            source = std::make_unique<nano_edr::FileSource>(path);
         } else {
-            nano_edr::OsSource source(path);
-            source.Run(&agent);
+            source = std::make_unique<nano_edr::OsSource>(path);
         }
+        source->Run(&agent);
         agent.PrintSummary();
 
         return 0;
