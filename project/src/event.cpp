@@ -21,6 +21,7 @@ Event::Event(const EventParts& parts) {
     type_ = parts.type;
     pid_ = parts.pid;
     fields_ = parts.fields;
+    event_type_ = EventTypeFromString(type_);
 }
 
 std::string ToString(const Event& event) {
@@ -37,5 +38,30 @@ std::string ToString(const Event& event) {
 }
 std::ostream& operator<<(std::ostream& out, const Event& event) {
     return out << ToString(event);
+}
+
+EventType EventTypeFromString(const std::string &type){
+    if (type == "process_start") {
+        return EventType::kProcessStart;
+    }
+    if (type == "process_end") {
+        return EventType::kProcessEnd;
+    }
+    if (type == "file_create") {
+        return EventType::kFileCreate;
+    }
+    if (type == "file_write") {
+        return EventType::kFileWrite;
+    }
+    if (type == "file_delete") {
+        return EventType::kFileDelete;
+    }
+    if (type == "file_move") {
+        return EventType::kFileMove;
+    }
+    if (type == "net_connect") {
+        return EventType::kNetConnect;
+    }
+    return EventType::kOther;
 }
 }  // namespace nano_edr
