@@ -4,7 +4,7 @@
 
 namespace nano_edr {
 
-void FileSource::Run(Agent* agent) {
+void FileSource::Run(IEventHandler* handler) {
     std::ifstream in(path_);
     if (!in) {
         throw std::runtime_error("не удалось открыть журнал: " + path_);
@@ -12,21 +12,21 @@ void FileSource::Run(Agent* agent) {
     std::string line;
     while (std::getline(in, line)) {
         if (IsBlankOrComment(line)) {
-            agent->CountComment();
+            handler->OnSkipped();
             continue;
         }
 
         EventParts parts;
         if (!ParseEventParts(line, &parts)) {
-            agent->CountMalformed();
+            handler->OnBroken();
             continue;
         }
 
         try {
             Event event(parts);
-            agent->HandleEvent(event);
+            handler->HandleEvent(event);
         } catch (const std::exception&) {
-            agent->CountRejected();
+            handler->OnBroken();
             continue;
         }
     }

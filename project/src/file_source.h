@@ -1,12 +1,12 @@
 #pragma once
-#include "agent.h"
+#include "event_source.h"
 
 
 namespace nano_edr{
-class FileSource {
+class FileSource : public IEventSource{
  public:
     explicit FileSource(const std::string& path): path_(path){}
-    void Run(Agent* agent);
+    void Run(IEventHandler*) override;
 
  private:
     const std::string path_;

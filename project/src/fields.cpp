@@ -113,6 +113,7 @@ std::string NormalizePath(const std::string& path) {
             path_new.push_back(c);
         }
     }
+    return path_new;
 }
 
 }  // namespace nano_edr
