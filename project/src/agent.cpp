@@ -65,7 +65,7 @@ void Agent::OnTick() {
 
 
 void Agent::PrintContext() const{
-    if (prev_prev_event_ != nullptr) {
+    if (prev_prev_event_ != nullptr && window_.size() > 1) {
         std::print(
             "[CTX] {}: ts={} type={} pid={}\n",
             -2,
