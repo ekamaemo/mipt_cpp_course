@@ -25,7 +25,7 @@
 #include "agent.h"
 
 
-bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std::string& path, bool& file_mode) {
+bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file_mode) {
     if (argc < 2) {
         std::print(stderr, "использование: nano-edr <журнал.log>\n");
         return false;
@@ -34,19 +34,6 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
             quiet = true;
-        } else if (std::string(argv[i]) == "--window-size") {
-            if (i + 1 >= argc) {
-                std::print(stderr, "ошибка: после --window-size нужно указать число\n");
-                return false;
-            }
-            std::string value = argv[++i];
-            std::size_t parsed = 0;
-            auto result = std::from_chars(value.data(), value.data() + value.size(), parsed);
-            if (result.ec != std::errc{} || result.ptr != value.data() + value.size()) {
-                std::print(stderr, "ошибка: --window-size требует целое число\n");
-                return false;
-            }
-            window_size = parsed;
         } else if (std::string(argv[i]) == "--file") {
             if (file_mode) {
                 std::print(stderr, "--file задан дважды\n");
@@ -85,15 +72,14 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::size_t& window_size, std
 int main(int argc, char** argv) {
     try {
         bool quiet = false;
-        std::size_t window_size = 64;
         std::string path;
         bool file_mode = false;
 
-        if (!ParseArgs(argc, argv, quiet, window_size, path, file_mode)) {
+        if (!ParseArgs(argc, argv, quiet, path, file_mode)) {
             return 2;
         }
 
-        nano_edr::Agent agent(window_size, quiet);
+        nano_edr::Agent agent(quiet);
         std::unique_ptr<nano_edr::IEventSource> source;
         if (file_mode) {
             source = std::make_unique<nano_edr::FileSource>(path);
