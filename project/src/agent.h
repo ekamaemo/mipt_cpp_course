@@ -35,7 +35,6 @@ class Agent : public IEventHandler{
     std::size_t comments_ = 0;
     size_t skipped_ = 0;
     std::size_t broken_ = 0;
-    const WindowEntry* prev_prev_event_ = nullptr;
     std::unordered_map<std::string, unsigned> types_;
     void PrintContext() const;
 };

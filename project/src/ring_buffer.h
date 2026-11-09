@@ -29,9 +29,6 @@
 #define NANO_EDR_RING_BUFFER_H
 
 #include <cstddef>
-#include <stdexcept>
-
-#include "event.h"
 
 namespace nano_edr {
     
@@ -73,8 +70,7 @@ class RingBuffer {
             ++size_;
         }
         buffer_[tail_] = value;
-        tail_ = (tail_ + 1) % N;
-        
+        tail_ = (tail_ + 1) % N; 
     }
 
     void Clear(){
@@ -82,7 +78,6 @@ class RingBuffer {
         tail_ = 0;
         size_ = 0;
     }
-
 
     std::size_t size() const {
         return size_;
@@ -102,19 +97,13 @@ class RingBuffer {
 
     // По логическому индексу: 0 — самый старый.
     const T& operator[](std::size_t index) const{
-        if (index >= size_) {
-            throw std::out_of_range("Index out of range");
-        }
         return buffer_[(head_ + index) % N];
     }
 
     // Самый новый элемент. Вызывать на пустом буфере нельзя — это ошибка
     // в коде вызывающего, а не случай, который надо обрабатывать.
     const T& back() const {
-        if (!empty()) {
-            return buffer_[(tail_ + N - 1) % N];
-        }
-        throw std::out_of_range("Buffer is empty");
+        return buffer_[(tail_ + N - 1) % N];
     }
 
     Iterator begin() const{
@@ -129,7 +118,6 @@ private:
     std::size_t head_{0};
     std::size_t tail_{0};
     std::size_t size_ = 0;
-
 };
 
 }  // namespace nano_edr

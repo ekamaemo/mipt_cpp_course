@@ -41,7 +41,7 @@ void Agent::PrintSummary() const {
     for (std::size_t i = 0; i < engine_.size(); ++i){
         std::print(" {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
-    std::print("[STAT] в окне занято {} из {} мест", window_.size(), window_.capacity());
+    std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
 }
 
 void Agent::CountComment() {
