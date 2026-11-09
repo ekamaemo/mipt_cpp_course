@@ -2,10 +2,10 @@
 #include <print>
 
 #include "agent_rules.h"
-#include "event_list.h"
 #include "rules.h"
 
 namespace nano_edr {
+Agent::Agent(bool quiet) : engine_(BuildAgentRules()), quiet_(quiet){};
 
 void Agent::HandleEvent(const Event& event) {
     std::vector<const IRule*> fired;
@@ -24,10 +24,7 @@ void Agent::HandleEvent(const Event& event) {
     }
     ++total_;
     ++types_[event.type()];
-    if (!window_.empty()) {
-        prev_prev_event_ = &window_.back()->event;
-    }
-    window_.PushBack(event);
+    window_.PushBack(WindowEntry{event.ts(), event.type(), event.pid()});
 }
 
 void Agent::PrintSummary() const {
@@ -44,6 +41,7 @@ void Agent::PrintSummary() const {
     for (std::size_t i = 0; i < engine_.size(); ++i){
         std::print(" {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
+    std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
 }
 
 void Agent::CountComment() {
@@ -65,22 +63,22 @@ void Agent::OnTick() {
 
 
 void Agent::PrintContext() const{
-    if (prev_prev_event_ != nullptr && window_.size() > 1) {
+    if (window_.size() >= 2) {
         std::print(
-            "[CTX] {}: ts={} type={} pid={}\n",
+            "[CTX] {}: {} {} pid={}\n",
             -2,
-            prev_prev_event_->raw_ts(),
-            prev_prev_event_->type(),
-            prev_prev_event_->pid());
+            window_[window_.size() - 2].ts.ms,
+            window_[window_.size() - 2].type,
+            window_[window_.size() - 2].pid);
     }
 
     if (!window_.empty()) {
         std::print(
-            "[CTX] {}: ts={} type={} pid={}\n",
+            "[CTX] {}: {} {} pid={}\n",
             -1,
-            window_.back()->event.raw_ts(),
-            window_.back()->event.type(),
-            window_.back()->event.pid());
+            window_.back().ts.ms,
+            window_.back().type,
+            window_.back().pid);
     }
 }
 }  // namespace nano_edr

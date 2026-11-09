@@ -1,5 +1,7 @@
 #include "agent_rules.h"
 #include "rule_engine.h"
+#include"make_rule.h"
+#include"combinators.h"
 
 #include <memory>
 #include <utility>
@@ -9,7 +11,7 @@ namespace nano_edr {
 namespace {
 
 void AddScriptHostFromTempRule(RuleEngine& engine) {
-    auto rule = std::make_unique<MatchRule>("script_host_from_temp", Severity::kHigh);
+    auto rule = MakeRule<MatchRule>("script_host_from_temp", Severity::kHigh);
     rule->AddCondition(std::make_unique<EventTypeIs>(
         std::vector<EventType>{EventType::kProcessStart}));
 
@@ -32,7 +34,7 @@ void AddScriptHostFromTempRule(RuleEngine& engine) {
 }
 
 void AddLolbinDownloadRule(RuleEngine& engine) {
-    auto rule = std::make_unique<MatchRule>("lolbin_download", Severity::kHigh);
+    auto rule = MakeRule<MatchRule>("lolbin_download", Severity::kHigh);
     rule->AddCondition(std::make_unique<EventTypeIs>(
         std::vector<EventType>{EventType::kProcessStart}));
 
@@ -53,7 +55,7 @@ void AddLolbinDownloadRule(RuleEngine& engine) {
 }
 
 void AddHiddenPowershellRule(RuleEngine& engine) {
-    auto rule = std::make_unique<MatchRule>("hidden_powershell", Severity::kMedium);
+    auto rule = MakeRule<MatchRule>("hidden_powershell", Severity::kMedium);
     rule->AddCondition(std::make_unique<EventTypeIs>(
         std::vector<EventType>{EventType::kProcessStart}));
 
@@ -74,7 +76,7 @@ void AddHiddenPowershellRule(RuleEngine& engine) {
 }
 
 void AddAutostartWriteRule(RuleEngine& engine) {
-    auto rule = std::make_unique<MatchRule>("autostart_write", Severity::kHigh);
+    auto rule = MakeRule<MatchRule>("autostart_write", Severity::kHigh);
     rule->AddCondition(std::make_unique<EventTypeIs>(std::vector<EventType>{
         EventType::kFileCreate, EventType::kFileWrite, EventType::kFileMove}));
 
@@ -90,7 +92,7 @@ void AddAutostartWriteRule(RuleEngine& engine) {
 }
 
 void AddRansomExtensionRule(RuleEngine& engine) {
-    auto rule = std::make_unique<MatchRule>("ransom_extension", Severity::kCritical);
+    auto rule = MakeRule<MatchRule>("ransom_extension", Severity::kCritical);
     rule->AddCondition(std::make_unique<EventTypeIs>(std::vector<EventType>{
         EventType::kFileCreate, EventType::kFileWrite, EventType::kFileMove}));
 
@@ -103,7 +105,7 @@ void AddRansomExtensionRule(RuleEngine& engine) {
     engine.AddRule(std::move(rule));
 }
 void AddScriptHostBeacon(RuleEngine& engine) {
-    auto beacon = std::make_unique<SequenceRule>("script_host_beacon",
+    auto beacon = MakeRule<SequenceRule>("script_host_beacon",
                                                  Severity::kCritical, 10000);
 
     auto first = std::make_unique<AllOf>();
@@ -134,6 +136,27 @@ void AddScriptHostBeacon(RuleEngine& engine) {
     beacon->AddAction("kill_process");
     engine.AddRule(std::move(beacon));
 }
+void AddScriptMassWriteRule(RuleEngine& engine) {
+    auto mass_write = MakeRule<ThresholdRule<128>>(
+        "ransomware_mass_write", Severity::kCritical,
+        20,      // сколько событий
+        10000,   // за сколько миллисекунд
+        "pid");  // порог считается для каждого pid отдельно
+    
+    mass_write->SetCondition(MakeCondition(AllOfStatic(
+    EventTypeIs({EventType::kFileCreate, EventType::kFileWrite,
+                 EventType::kFileMove}),
+    AnyOfStatic(FieldContains("path", "\\Documents\\"),
+                FieldContains("path", "\\Desktop\\"),
+                FieldContains("to", "\\Documents\\"),
+                FieldContains("to", "\\Desktop\\")
+                ))));
+    mass_write->AddAction("kill_process");
+    mass_write->AddAction("quarantine_file");
+
+
+    engine.AddRule(std::move(mass_write));
+}
 }  // namespace
 
 RuleEngine BuildAgentRules() {
@@ -144,6 +167,7 @@ RuleEngine BuildAgentRules() {
     AddAutostartWriteRule(engine);
     AddRansomExtensionRule(engine);
     AddScriptHostBeacon(engine);
+    AddScriptMassWriteRule(engine);
     return engine;
 }
 
