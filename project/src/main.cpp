@@ -22,6 +22,7 @@
 #include "file_source.h"
 #include "os_source.h"
 #include "agent.h"
+#include "edr_handle.h"
 
 
 bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file_mode, std::string& out) {
@@ -94,15 +95,18 @@ int main(int argc, char** argv) {
         if (!ParseArgs(argc, argv, options.quiet, options.path, options.file_mode, options.out)) {
             return 2;
         }
-
+        nano_edr::EdrHandle edr(options.path);
         nano_edr::Agent agent(options.quiet);
+
         std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file_mode) {
             source = std::make_unique<nano_edr::FileSource>(options.path);
         } else {
             source = std::make_unique<nano_edr::OsSource>(options.path);
         }
+
         nano_edr::FanOutSink targets;
+        targets.Add(nano_edr::EdrSink(&edr));
         targets.Add(nano_edr::ConsoleSink());
         if (!options.out.empty()) {
             targets.Add(nano_edr::FileSink(options.out));
@@ -110,6 +114,9 @@ int main(int argc, char** argv) {
         agent.Subscribe(std::move(targets));
 
         source->Run(&agent);
+        if (edr.Flush() != EDR_OK){
+            std::print(stderr, "[WARN] детекты не отправлены\n");
+        }
         agent.PrintSummary();
 
         return 0;
