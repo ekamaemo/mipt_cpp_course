@@ -5,9 +5,12 @@
 #include "rules.h"
 
 namespace nano_edr {
-Agent::Agent(bool quiet) : engine_(BuildAgentRules()), quiet_(quiet){};
+Agent::Agent(bool quiet) : engine_(BuildAgentRules()), quiet_(quiet){
+    engine_.SetModel(&model_);
+};
 
 void Agent::HandleEvent(const Event& event) {
+    model_.Observe(event);
     contextPrinted_ = false;
     engine_.ProcessEvent(event, nullptr);
     ++total_;
@@ -30,6 +33,7 @@ void Agent::PrintSummary() const {
         std::print(" {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
     std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
+    std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
 }
 
 void Agent::CountComment() {

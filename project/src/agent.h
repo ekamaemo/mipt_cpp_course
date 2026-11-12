@@ -31,6 +31,7 @@ class Agent : public IEventHandler{
 
  private:
     RingBuffer<WindowEntry, kWindowCapacity> window_;
+    EntityModel model_;
     RuleEngine engine_;
     bool quiet_ = false;
     std::size_t total_ = 0;
