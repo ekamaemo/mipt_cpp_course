@@ -3,7 +3,7 @@
 namespace nano_edr {
 std::string ToString(const Detection& detection){
     std::string result = "[DETECT] " +
-                         std::to_string(static_cast<int>(detection.severity)) +
+                         std::string(SeverityName(detection.severity)) +
                          " " + detection.rule +
                          " ts=" + std::to_string(detection.ts.ms) + 
                          " pid=" + detection.pid;

@@ -70,4 +70,9 @@ bool SequenceRule::Check(const Event& event) {
     }
     return false;
 }
+
+// src/rule.cpp, шаг 7
+LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate)
+    : RuleBase(id, severity) {}
+bool LambdaRule::Check(const Event&) { return false; }
 }

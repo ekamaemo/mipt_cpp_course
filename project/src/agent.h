@@ -27,6 +27,8 @@ class Agent : public IEventHandler{
     void CountMalformed();
     void CountRejected();
 
+    void Subscribe(AlertSink sink);
+
  private:
     RingBuffer<WindowEntry, kWindowCapacity> window_;
     RuleEngine engine_;
@@ -37,5 +39,7 @@ class Agent : public IEventHandler{
     std::size_t broken_ = 0;
     std::unordered_map<std::string, unsigned> types_;
     void PrintContext() const;
+    void PrintContextOnce();
+    bool contextPrinted_ = false;
 };
 }  // namespace nano_edr
