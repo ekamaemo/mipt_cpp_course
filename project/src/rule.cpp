@@ -53,7 +53,7 @@ bool SequenceRule::Check(const Event& event) {
     if (second_->Matches(event)) {
         std::size_t found = pending_.size();   
         for (std::size_t i = 0; i < pending_.size(); ++i) {
-            if (!same_pid_ || pending_[i].pid == event.pid()) {
+            if (!same_pid_ || Linked(pending_[i], event)) {
                 found = i;
                 break;
             }
@@ -71,8 +71,35 @@ bool SequenceRule::Check(const Event& event) {
     return false;
 }
 
+bool SequenceRule::Linked(const Pending& first, const Event& second) const {
+    if (child_of_prev_) {
+        if (model_ == nullptr) {
+            return false;
+        }
+        const ProcessRecord* process = model_->FindProcess(second.pid());
+        if (process == nullptr || process->ppid != first.pid) {
+            return false;
+        }
+    } else if (same_pid_ && first.pid != second.pid()) {
+        return false;
+    }
+    return true;
+}
+
 // src/rule.cpp, шаг 7
-LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate)
-    : RuleBase(id, severity) {}
-bool LambdaRule::Check(const Event&) { return false; }
+LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate predicate)
+    : RuleBase(id, severity) {
+        predicate_ = predicate;
+}
+
+bool LambdaRule::Check(const Event& event) { 
+    if (predicate_ == nullptr) {
+            return false;
+    }
+    if (predicate_(event)){
+        CountHit();
+        return true;
+    }
+    return false;
+}
 }

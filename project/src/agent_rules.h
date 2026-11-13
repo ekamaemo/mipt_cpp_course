@@ -31,7 +31,7 @@
 namespace nano_edr {
 
 // Таблица правил агента и её длина — ровно то, что принимает CheckRules.
-RuleEngine BuildAgentRules();
+RuleEngine BuildAgentRules(const EntityModel* model);
 
 }  // namespace nano_edr
 

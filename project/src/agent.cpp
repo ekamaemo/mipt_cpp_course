@@ -5,7 +5,7 @@
 #include "rules.h"
 
 namespace nano_edr {
-Agent::Agent(bool quiet) : engine_(BuildAgentRules()), quiet_(quiet){
+Agent::Agent(bool quiet) : engine_(BuildAgentRules(&model_)), quiet_(quiet){
     engine_.SetModel(&model_);
 };
 

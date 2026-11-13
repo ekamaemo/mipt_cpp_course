@@ -157,10 +157,57 @@ void AddScriptMassWriteRule(RuleEngine& engine) {
 
     engine.AddRule(std::move(mass_write));
 }
-}  // namespace
 
-RuleEngine BuildAgentRules() {
+void AddShellSpawnsScriptHost(RuleEngine& engine, const EntityModel* model) {
+    auto shell_spawns_script_host = MakeRule<SequenceRule>(
+        "shell_spawns_script_host", Severity::kHigh, 30000);
+        
+    auto first = std::make_unique<AllOf>();
+    first->Add(std::make_unique<EventTypeIs>(
+        std::vector<EventType>{EventType::kProcessStart}));
+    auto shell_image = std::make_unique<AnyOf>();
+    shell_image->Add(std::make_unique<FieldEndsWith>("image", "cmd.exe"));
+    shell_image->Add(std::make_unique<FieldEndsWith>("image", "powershell.exe"));
+    shell_image->Add(std::make_unique<FieldEndsWith>("image", "pwsh.exe"));
+    first->Add(std::move(shell_image));
+    shell_spawns_script_host->SetFirst(std::move(first));
+
+    auto second = std::make_unique<AllOf>();
+    second->Add(std::make_unique<EventTypeIs>(
+        std::vector<EventType>{EventType::kProcessStart}));
+    auto image = std::make_unique<AnyOf>();
+    image->Add(std::make_unique<FieldEndsWith>("image", "wscript.exe"));
+    image->Add(std::make_unique<FieldEndsWith>("image", "cscript.exe"));
+    second->Add(std::move(image));
+    shell_spawns_script_host->SetSecond(std::move(second));
+
+    shell_spawns_script_host->set_child_of_prev(true);
+    shell_spawns_script_host->SetModel(model);
+    shell_spawns_script_host->AddAction("kill_process");
+    engine.AddRule(std::move(shell_spawns_script_host));
+} 
+
+void AddSpawnedFromDroppedFileRule(RuleEngine& engine, const EntityModel* model) {
+    auto dropped = MakeRule<LambdaRule>("spawned_from_dropped_file", Severity::kHigh, [model](const Event& event){
+        if (event.event_type() != EventType::kProcessStart) {
+            return false;
+        }
+        const FileRecord* source = model->FindSpawnSource(event.pid());
+        if (source != nullptr && source->writer_pid != "" && source->writer_pid != event.pid()) {
+            return true;
+        }
+        return false;
+    });
+    dropped->AddAction("kill_process");
+    dropped->AddAction("quarantine_file");
+    engine.AddRule(std::move(dropped));
+}
+
+} // namespace
+
+RuleEngine BuildAgentRules(const EntityModel* model) {
     RuleEngine engine;
+    engine.SetModel(model);
     AddScriptHostFromTempRule(engine);
     AddLolbinDownloadRule(engine);
     AddHiddenPowershellRule(engine);
@@ -168,6 +215,8 @@ RuleEngine BuildAgentRules() {
     AddRansomExtensionRule(engine);
     AddScriptHostBeacon(engine);
     AddScriptMassWriteRule(engine);
+    AddShellSpawnsScriptHost(engine, model);
+    AddSpawnedFromDroppedFileRule(engine, model);
     return engine;
 }
 
