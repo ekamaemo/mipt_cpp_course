@@ -3,25 +3,17 @@
 
 #include "agent_rules.h"
 #include "rules.h"
+#include "dedup_sink.h"
 
 namespace nano_edr {
-Agent::Agent(bool quiet) : engine_(BuildAgentRules()), quiet_(quiet){};
+Agent::Agent(bool quiet, uint64_t dedup_period_ms) : engine_(BuildAgentRules(&model_)), quiet_(quiet), dedup_period_ms_(dedup_period_ms) {
+    engine_.SetModel(&model_);
+};
 
 void Agent::HandleEvent(const Event& event) {
-    std::vector<const IRule*> fired;
-    engine_.ProcessEvent(event, &fired);
-    bool contextPrinted = false;
-    for (std::size_t i = 0; i < fired.size(); ++i){
-        if (!contextPrinted && !quiet_){
-            PrintContext();
-            contextPrinted = true;
-        }
-        std::print("[DETECT] {}  {}  ts={} pid={}\n",
-                   SeverityName(fired[i]->severity()),
-                       fired[i]->id(),
-                       event.raw_ts(),
-                       event.pid());
-    }
+    model_.Observe(event);
+    contextPrinted_ = false;
+    engine_.ProcessEvent(event, nullptr);
     ++total_;
     ++types_[event.type()];
     window_.PushBack(WindowEntry{event.ts(), event.type(), event.pid()});
@@ -42,6 +34,8 @@ void Agent::PrintSummary() const {
         std::print(" {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
     std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
+    std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
+    std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
 }
 
 void Agent::CountComment() {
@@ -79,6 +73,20 @@ void Agent::PrintContext() const{
             window_.back().ts.ms,
             window_.back().type,
             window_.back().pid);
+    }
+}
+
+void Agent::Subscribe(AlertSink sink) {
+    FanOutSink all;
+    all.Add([this](const Detection&) { PrintContextOnce(); });
+    all.Add(std::move(sink));
+    engine_.Subscribe(DedupSink(std::move(all), dedup_period_ms_, &suppressed_));
+}
+
+void Agent::PrintContextOnce() {
+    if (!contextPrinted_ && !quiet_) {
+        PrintContext();
+        contextPrinted_ = true;
     }
 }
 }  // namespace nano_edr
