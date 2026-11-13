@@ -23,6 +23,7 @@
 #include "os_source.h"
 #include "agent.h"
 #include "edr_handle.h"
+#include "field_traits.h"
 
 
 bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file_mode, std::string& out) {
@@ -96,7 +97,13 @@ int main(int argc, char** argv) {
             return 2;
         }
         nano_edr::EdrHandle edr(options.path);
-        nano_edr::Agent agent(options.quiet);
+        const std::string text = edr.Config("dedup_period_ms", "10000");
+        uint64_t dedup_period_ms = 0;
+        if (!nano_edr::FieldTraits<uint64_t>::Parse(text, &dedup_period_ms)) {
+            std::print(stderr, "[WARN] dedup_period_ms не разбирается: {}\n", text);
+            dedup_period_ms = 10000;
+        }
+        nano_edr::Agent agent(options.quiet, dedup_period_ms);
 
         std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file_mode) {

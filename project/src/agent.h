@@ -16,7 +16,7 @@ struct WindowEntry {
 class Agent : public IEventHandler{
  public:
     static constexpr std::size_t kWindowCapacity = 256;
-    explicit Agent(bool quiet);
+    explicit Agent(bool quiet, uint64_t dedup_period_ms);
     void HandleEvent(const Event& event) override;
     void OnSkipped() override;
     void OnBroken() override;
@@ -42,5 +42,8 @@ class Agent : public IEventHandler{
     void PrintContext() const;
     void PrintContextOnce();
     bool contextPrinted_ = false;
+
+    uint64_t dedup_period_ms_{};
+    std::size_t suppressed_{};
 };
 }  // namespace nano_edr

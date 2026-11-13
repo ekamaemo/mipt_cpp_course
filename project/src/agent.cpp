@@ -3,9 +3,10 @@
 
 #include "agent_rules.h"
 #include "rules.h"
+#include "dedup_sink.h"
 
 namespace nano_edr {
-Agent::Agent(bool quiet) : engine_(BuildAgentRules(&model_)), quiet_(quiet){
+Agent::Agent(bool quiet, uint64_t dedup_period_ms) : engine_(BuildAgentRules(&model_)), quiet_(quiet), dedup_period_ms_(dedup_period_ms) {
     engine_.SetModel(&model_);
 };
 
@@ -34,6 +35,7 @@ void Agent::PrintSummary() const {
     }
     std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
     std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
+    std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
 }
 
 void Agent::CountComment() {
@@ -78,7 +80,7 @@ void Agent::Subscribe(AlertSink sink) {
     FanOutSink all;
     all.Add([this](const Detection&) { PrintContextOnce(); });
     all.Add(std::move(sink));
-    engine_.Subscribe(std::move(all));
+    engine_.Subscribe(DedupSink(std::move(all), dedup_period_ms_, &suppressed_));
 }
 
 void Agent::PrintContextOnce() {

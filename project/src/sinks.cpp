@@ -49,8 +49,31 @@ void FanOutSink::operator()(const Detection& detection) const {
 
 // --- DedupSink -------------------------------------------------------------
 
-DedupSink::DedupSink(AlertSink, uint64_t, std::size_t*) {}
+DedupSink::DedupSink(AlertSink inner, uint64_t period_ms, std::size_t* suppressed)
+    : inner_(std::move(inner)), period_ms_(period_ms), suppressed_(suppressed) {}
 
-void DedupSink::operator()(const Detection&) {}
+void DedupSink::operator()(const Detection& detection) {
+    if (period_ms_ == 0) {
+        inner_(detection);
+        return;
+    }
+    for (Detect& d : last_forwarded_){
+        if (d.rule == detection.rule && d.pid == detection.pid){
+            if(detection.ts.ms - d.ts_ms_first <= period_ms_){
+                if (suppressed_ != nullptr) {
+                    ++(*suppressed_);
+                }
+                return;
+            } else {
+                inner_(detection);
+                d.ts_ms_first = detection.ts.ms;
+                return; // чтобы не заполнять память лишним - меняем последнее время
+            }
+        }
+    }
+    // сюда попадаем если нужно создать новую запись о праивле с процессом
+    inner_(detection);
+    last_forwarded_.push_back({detection.rule, detection.pid, detection.ts.ms});
+}
 
 }  // namespace nano_edr
