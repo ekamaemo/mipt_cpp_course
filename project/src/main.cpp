@@ -22,23 +22,36 @@
 #include "file_source.h"
 #include "os_source.h"
 #include "agent.h"
+#include "edr_handle.h"
+#include "field_traits.h"
 
 
-bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file_mode) {
+struct Options {
+    bool quiet = false;
+    std::string path;
+    bool file_mode = false;
+    std::string out;
+};
+
+
+bool ParseArgs(int argc, char** argv, Options* options) {
     if (argc < 2) {
-        std::print(stderr, "использование: nano-edr <журнал.log>\n");
+        std::print(stderr,
+    "использование: nano-edr [--quiet] [--out <файл>] <журнал.log>\n"
+    "             nano-edr [--quiet] [--out <файл>] --file <журнал.log>\n"
+    "  --file <журнал.log>  читать события из файла\n"
+    "  --out <файл>         сохранить детекты также в файл\n");
         return false;
     }
-
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
-            quiet = true;
+            options->quiet = true;
         } else if (std::string(argv[i]) == "--file") {
-            if (file_mode) {
+            if (options->file_mode) {
                 std::print(stderr, "--file задан дважды\n");
                 return false;
             }
-            if (!path.empty()) {
+            if (!options->path.empty()) {
                 std::print(stderr, "путь задан дважды\n");
                 return false;
             }
@@ -46,21 +59,31 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file
                 std::print(stderr, "ошибка: после --file нужен путь\n");
                 return false;
             }
-            file_mode = true;
-            path = argv[++i];
+            options->file_mode = true;
+            options->path = argv[++i];
+        } else if (std::string(argv[i]) == "--out") {
+            if (!options->out.empty()) {
+                std::print(stderr, "--out задан дважды\n");
+                return false;
+            }
+            if (i + 1 >= argc) {
+                std::print(stderr, "ошибка: после --out нужен путь\n");
+                return false;
+            }
+            options->out = argv[++i];
         } else if (std::string(argv[i]).starts_with("--")) {
             std::print(stderr, "неизвестная опция: {}\n", std::string(argv[i]));
             return false;
-        } else {
-            if (!path.empty()) {
+        }else {
+            if (!options->path.empty()) {
                 std::print(stderr, "путь задан дважды\n");
                 return false;
             }
-            path = std::string(argv[i]);
+            options->path = std::string(argv[i]);
         }
     }
 
-    if (path.empty()) {
+    if (options->path.empty()) {
         std::print(stderr, "не указан путь\n");
         return false;
     }
@@ -68,24 +91,41 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file
     return true;
 }
 
+
 int main(int argc, char** argv) {
     try {
-        bool quiet = false;
-        std::string path;
-        bool file_mode = false;
-
-        if (!ParseArgs(argc, argv, quiet, path, file_mode)) {
+        Options options;
+        if (!ParseArgs(argc, argv, &options)) {
             return 2;
         }
-
-        nano_edr::Agent agent(quiet);
-        std::unique_ptr<nano_edr::IEventSource> source;
-        if (file_mode) {
-            source = std::make_unique<nano_edr::FileSource>(path);
-        } else {
-            source = std::make_unique<nano_edr::OsSource>(path);
+        nano_edr::EdrHandle edr(options.path);
+        const std::string text = edr.Config("dedup_period_ms", "10000");
+        uint64_t dedup_period_ms = 0;
+        if (!nano_edr::FieldTraits<uint64_t>::Parse(text, &dedup_period_ms)) {
+            std::print(stderr, "[WARN] dedup_period_ms не разбирается: {}\n", text);
+            dedup_period_ms = 10000;
         }
+        nano_edr::Agent agent(options.quiet, dedup_period_ms);
+
+        std::unique_ptr<nano_edr::IEventSource> source;
+        if (options.file_mode) {
+            source = std::make_unique<nano_edr::FileSource>(options.path);
+        } else {
+            source = std::make_unique<nano_edr::OsSource>(options.path);
+        }
+
+        nano_edr::FanOutSink targets;
+        targets.Add(nano_edr::EdrSink(&edr));
+        targets.Add(nano_edr::ConsoleSink());
+        if (!options.out.empty()) {
+            targets.Add(nano_edr::FileSink(options.out));
+        }
+        agent.Subscribe(std::move(targets));
+
         source->Run(&agent);
+        if (edr.Flush() != EDR_OK){
+            std::print(stderr, "[WARN] детекты не отправлены\n");
+        }
         agent.PrintSummary();
 
         return 0;
