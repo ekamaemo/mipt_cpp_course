@@ -8,11 +8,11 @@
 namespace nano_edr {
 Agent::Agent(bool quiet, uint64_t dedup_period_ms) : engine_(BuildAgentRules(&model_)), quiet_(quiet), dedup_period_ms_(dedup_period_ms) {
     engine_.SetModel(&model_);
-};
+}
 
 void Agent::HandleEvent(const Event& event) {
     model_.Observe(event);
-    contextPrinted_ = false;
+    context_printed_ = false;
     engine_.ProcessEvent(event, nullptr);
     ++total_;
     ++types_[event.type()];
@@ -84,9 +84,9 @@ void Agent::Subscribe(AlertSink sink) {
 }
 
 void Agent::PrintContextOnce() {
-    if (!contextPrinted_ && !quiet_) {
+    if (!context_printed_ && !quiet_) {
         PrintContext();
-        contextPrinted_ = true;
+        context_printed_ = true;
     }
 }
 }  // namespace nano_edr

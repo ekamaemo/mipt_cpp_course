@@ -23,9 +23,9 @@
 
 namespace nano_edr {
 struct Detect {
-    std::string rule;
-    std::string pid;
-    uint64_t ts_ms_first;
+    std::string rule{};
+    std::string pid{};
+    uint64_t ts_ms_first{};
 };
 
 class DedupSink {
@@ -36,10 +36,10 @@ class DedupSink {
 
     void operator()(const Detection& detection);
  private:
-    AlertSink inner_;
-    uint64_t period_ms_;
-    std::size_t* suppressed_;
-    std::vector<Detect> last_forwarded_;
+    AlertSink inner_{};
+    uint64_t period_ms_ {};
+    std::size_t* suppressed_{};
+    std::vector<Detect> last_forwarded_ {};
 };
 
 }  // namespace nano_edr

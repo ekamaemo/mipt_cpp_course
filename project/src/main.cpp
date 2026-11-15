@@ -26,23 +26,32 @@
 #include "field_traits.h"
 
 
-bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file_mode, std::string& out) {
+struct Options {
+    bool quiet = false;
+    std::string path;
+    bool file_mode = false;
+    std::string out;
+};
+
+
+bool ParseArgs(int argc, char** argv, Options* options) {
     if (argc < 2) {
         std::print(stderr,
     "использование: nano-edr [--quiet] [--out <файл>] <журнал.log>\n"
-    "  --out <файл>  сохранить детекты также в файл\n");
+    "             nano-edr [--quiet] [--out <файл>] --file <журнал.log>\n"
+    "  --file <журнал.log>  читать события из файла\n"
+    "  --out <файл>         сохранить детекты также в файл\n");
         return false;
     }
-
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
-            quiet = true;
+            options->quiet = true;
         } else if (std::string(argv[i]) == "--file") {
-            if (file_mode) {
+            if (options->file_mode) {
                 std::print(stderr, "--file задан дважды\n");
                 return false;
             }
-            if (!path.empty()) {
+            if (!options->path.empty()) {
                 std::print(stderr, "путь задан дважды\n");
                 return false;
             }
@@ -50,10 +59,10 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file
                 std::print(stderr, "ошибка: после --file нужен путь\n");
                 return false;
             }
-            file_mode = true;
-            path = argv[++i];
+            options->file_mode = true;
+            options->path = argv[++i];
         } else if (std::string(argv[i]) == "--out") {
-            if (!out.empty()) {
+            if (!options->out.empty()) {
                 std::print(stderr, "--out задан дважды\n");
                 return false;
             }
@@ -61,20 +70,20 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file
                 std::print(stderr, "ошибка: после --out нужен путь\n");
                 return false;
             }
-            out = argv[++i];
+            options->out = argv[++i];
         } else if (std::string(argv[i]).starts_with("--")) {
             std::print(stderr, "неизвестная опция: {}\n", std::string(argv[i]));
             return false;
         }else {
-            if (!path.empty()) {
+            if (!options->path.empty()) {
                 std::print(stderr, "путь задан дважды\n");
                 return false;
             }
-            path = std::string(argv[i]);
+            options->path = std::string(argv[i]);
         }
     }
 
-    if (path.empty()) {
+    if (options->path.empty()) {
         std::print(stderr, "не указан путь\n");
         return false;
     }
@@ -85,15 +94,8 @@ bool ParseArgs(int argc, char** argv, bool& quiet, std::string& path, bool& file
 
 int main(int argc, char** argv) {
     try {
-        struct Options {
-            bool quiet = false;
-            std::string path;
-            bool file_mode = false;
-            std::string out;
-        };
-
         Options options;
-        if (!ParseArgs(argc, argv, options.quiet, options.path, options.file_mode, options.out)) {
+        if (!ParseArgs(argc, argv, &options)) {
             return 2;
         }
         nano_edr::EdrHandle edr(options.path);

@@ -193,10 +193,7 @@ void AddSpawnedFromDroppedFileRule(RuleEngine& engine, const EntityModel* model)
             return false;
         }
         const FileRecord* source = model->FindSpawnSource(event.pid());
-        if (source != nullptr && source->writer_pid != "" && source->writer_pid != event.pid()) {
-            return true;
-        }
-        return false;
+        return source != nullptr && !source->writer_pid.empty() && source->writer_pid != event.pid();
     });
     dropped->AddAction("kill_process");
     dropped->AddAction("quarantine_file");

@@ -41,7 +41,7 @@ class Agent : public IEventHandler{
     std::unordered_map<std::string, unsigned> types_;
     void PrintContext() const;
     void PrintContextOnce();
-    bool contextPrinted_ = false;
+    bool context_printed_ = false;
 
     uint64_t dedup_period_ms_{};
     std::size_t suppressed_{};

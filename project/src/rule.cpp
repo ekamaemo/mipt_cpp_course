@@ -53,7 +53,7 @@ bool SequenceRule::Check(const Event& event) {
     if (second_->Matches(event)) {
         std::size_t found = pending_.size();   
         for (std::size_t i = 0; i < pending_.size(); ++i) {
-            if (!same_pid_ || Linked(pending_[i], event)) {
+            if (Linked(pending_[i], event)) {
                 found = i;
                 break;
             }
@@ -88,9 +88,7 @@ bool SequenceRule::Linked(const Pending& first, const Event& second) const {
 
 // src/rule.cpp, шаг 7
 LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate predicate)
-    : RuleBase(id, severity) {
-        predicate_ = predicate;
-}
+    : RuleBase(id, severity), predicate_(std::move(predicate)) {}
 
 bool LambdaRule::Check(const Event& event) { 
     if (predicate_ == nullptr) {
