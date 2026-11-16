@@ -63,4 +63,12 @@ bool ContainsIgnoreCase(const std::string& line, const std::string& needle) {
     return false;
 }
 
+bool StartsWithIgnoreCase(const std::string &line, const std::string &prefix){
+    if (line.size() < prefix.size()){
+        return false;
+    }
+    const std::string pref_line = line.substr(0, prefix.size());
+    return EqualsIgnoreCase(pref_line, prefix);
+}
+
 }  // namespace nano_edr
