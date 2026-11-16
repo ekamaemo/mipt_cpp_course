@@ -1,28 +1,39 @@
 #include <event.h>
 
 namespace nano_edr {
-Event::Event(const EventParts& parts) {
-    if (parts.ts.empty()) {
+Timestamp Event::Validate(const std::string& raw_ts, const std::string& type) {
+    if (raw_ts.empty()) {
         throw std::invalid_argument("Пустое время");
     }
-    if (parts.type.empty()) {
+    if (type.empty()) {
         throw std::invalid_argument("Пустой тип события");
     }
 
     uint64_t parsedTs = 0;
-    const char* begin = parts.ts.data();
-    const char* end = parts.ts.data() + parts.ts.size();
+    const char* begin = raw_ts.data();
+    const char* end = raw_ts.data() + raw_ts.size();
     auto result = std::from_chars(begin, end, parsedTs);
     if (result.ec != std::errc{} || result.ptr != end) {
-        throw std::invalid_argument("неверное время события: " + parts.ts);
+        throw std::invalid_argument("неверное время события: " + raw_ts);
     }
-    ts_ = Timestamp{parsedTs};
-    raw_ts_ = parts.ts;
-    type_ = parts.type;
-    pid_ = parts.pid;
-    fields_ = parts.fields;
-    event_type_ = EventTypeFromString(type_);
+    return Timestamp{parsedTs};
 }
+
+Event::Event(EventParts&& parts)
+    : ts_(Validate(parts.ts, parts.type)),
+      raw_ts_(std::move(parts.ts)),
+      type_(std::move(parts.type)),
+      event_type_(EventTypeFromString(type_)),
+      pid_(std::move(parts.pid)),
+      fields_(std::move(parts.fields)) {}
+
+Event::Event(const EventParts& parts)
+    : ts_(Validate(parts.ts, parts.type)),
+      raw_ts_(parts.ts),
+      type_(parts.type),
+      event_type_(EventTypeFromString(type_)),
+      pid_(parts.pid),
+      fields_(parts.fields) {}
 
 std::string ToString(const Event& event) {
     std::string result;
@@ -40,7 +51,7 @@ std::ostream& operator<<(std::ostream& out, const Event& event) {
     return out << ToString(event);
 }
 
-EventType EventTypeFromString(const std::string &type){
+EventType EventTypeFromString(const std::string& type) {
     if (type == "process_start") {
         return EventType::kProcessStart;
     }
@@ -64,4 +75,5 @@ EventType EventTypeFromString(const std::string &type){
     }
     return EventType::kOther;
 }
+
 }  // namespace nano_edr
