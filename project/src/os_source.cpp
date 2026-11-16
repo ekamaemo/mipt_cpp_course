@@ -1,10 +1,11 @@
 #include "os_source.h"
+
+#include <print>
+
 #include "event_source.h"
-#include<print>
 
+namespace nano_edr {
 
-namespace nano_edr{
-    
 EventParts ConvertOsEvent(const os_event* ev) {
     EventParts parts;
     parts.ts = std::to_string(ev->ts);

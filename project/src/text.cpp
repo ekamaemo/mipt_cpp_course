@@ -13,14 +13,14 @@ inline bool CharEqIgnoreCase(char a, char b) noexcept {
     return LowerAscii(static_cast<unsigned char>(a)) ==
            LowerAscii(static_cast<unsigned char>(b));
 }
-}
+}  // namespace
 
 bool EqualsIgnoreCase(const std::string& line_a, const std::string& line_b) {
-    if (line_a.size() != line_b.size()){ 
+    if (line_a.size() != line_b.size()) {
         return false;
     }
     for (std::size_t i = 0; i < line_a.size(); ++i) {
-        if (!CharEqIgnoreCase(line_a[i], line_b[i])){
+        if (!CharEqIgnoreCase(line_a[i], line_b[i])) {
             return false;
         }
     }
@@ -28,13 +28,13 @@ bool EqualsIgnoreCase(const std::string& line_a, const std::string& line_b) {
 }
 
 bool EndsWithIgnoreCase(const std::string& line, const std::string& suffix) {
-    if (suffix.size() > line.size()){ 
+    if (suffix.size() > line.size()) {
         return false;
     }
 
     const std::size_t off = line.size() - suffix.size();
     for (std::size_t i = 0; i < suffix.size(); ++i) {
-        if (!CharEqIgnoreCase(line[off + i], suffix[i])){
+        if (!CharEqIgnoreCase(line[off + i], suffix[i])) {
             return false;
         }
     }
@@ -42,10 +42,10 @@ bool EndsWithIgnoreCase(const std::string& line, const std::string& suffix) {
 }
 
 bool ContainsIgnoreCase(const std::string& line, const std::string& needle) {
-    if (needle.empty()){
+    if (needle.empty()) {
         return true;
     }
-    if (needle.size() > line.size()){
+    if (needle.size() > line.size()) {
         return false;
     }
 
@@ -53,7 +53,7 @@ bool ContainsIgnoreCase(const std::string& line, const std::string& needle) {
     const std::size_t last = line.size() - n;
     for (std::size_t i = 0; i <= last; ++i) {
         std::size_t j = 0;
-        while (j < n && CharEqIgnoreCase(line[i + j], needle[j])){ 
+        while (j < n && CharEqIgnoreCase(line[i + j], needle[j])) {
             ++j;
         }
         if (j == n) {
@@ -63,4 +63,4 @@ bool ContainsIgnoreCase(const std::string& line, const std::string& needle) {
     return false;
 }
 
-}
+}  // namespace nano_edr

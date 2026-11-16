@@ -1,9 +1,10 @@
 #include "agent.h"
+
 #include <print>
 
 #include "agent_rules.h"
-#include "rules.h"
 #include "dedup_sink.h"
+#include "rules.h"
 
 namespace nano_edr {
 Agent::Agent(bool quiet, uint64_t dedup_period_ms) : engine_(BuildAgentRules(&model_)), quiet_(quiet), dedup_period_ms_(dedup_period_ms) {
@@ -16,7 +17,11 @@ void Agent::HandleEvent(const Event& event) {
     engine_.ProcessEvent(event, nullptr);
     ++total_;
     ++types_[event.type()];
-    window_.PushBack(WindowEntry{event.ts(), event.type(), event.pid()});
+    WindowEntry entry;
+    entry.ts = event.ts();
+    entry.type = event.type();
+    entry.pid = event.pid();
+    window_.PushBack(entry);
 }
 
 void Agent::PrintSummary() const {
@@ -30,7 +35,7 @@ void Agent::PrintSummary() const {
     }
 
     std::print("правила, детектов:\n");
-    for (std::size_t i = 0; i < engine_.size(); ++i){
+    for (std::size_t i = 0; i < engine_.size(); ++i) {
         std::print(" {}  {}\n", engine_.rule(i).id(), engine_.rule(i).hits());
     }
     std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
@@ -41,7 +46,6 @@ void Agent::PrintSummary() const {
 void Agent::CountComment() {
     ++comments_;
 }
-
 
 void Agent::OnSkipped() {
     ++skipped_;
@@ -55,8 +59,7 @@ void Agent::OnTick() {
     // пусто
 }
 
-
-void Agent::PrintContext() const{
+void Agent::PrintContext() const {
     if (window_.size() >= 2) {
         std::print(
             "[CTX] {}: {} {} pid={}\n",

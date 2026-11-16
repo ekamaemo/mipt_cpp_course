@@ -16,7 +16,7 @@ std::string LowerString(const std::string& str) {
     }
     return res;
 }
-}
+}  // namespace
 
 // возвращает nullptr, если поля нет. Это не ошибка, потому что есть
 // необязательные поля. Вызывающий должен проверять на nullptr.
@@ -83,7 +83,6 @@ bool IsFileWrite(const Event& event) {
 bool IsNetConnect(const Event& event) {
     return event.type() == "net_connect";
 }
-
 
 bool PathEndsWith(const Event& event, const std::string& suffix) {
     const std::string* path = FindField(event, "path");

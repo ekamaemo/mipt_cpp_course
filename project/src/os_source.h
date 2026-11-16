@@ -5,7 +5,7 @@
 namespace nano_edr {
 
 EventParts ConvertOsEvent(const os_event* ev);
-class OsSource : public IEventSource{
+class OsSource : public IEventSource {
  public:
     explicit OsSource(const std::string& config_path)
         : handle_(config_path) {}
@@ -16,4 +16,4 @@ class OsSource : public IEventSource{
  private:
     OsHandle handle_;
 };
-} 
+}  // namespace nano_edr

@@ -31,7 +31,7 @@
 #include <cstddef>
 
 namespace nano_edr {
-    
+
 template <typename T, std::size_t N>
 class RingBuffer {
  public:
@@ -43,19 +43,20 @@ class RingBuffer {
     class Iterator {
      public:
         Iterator(const RingBuffer* buffer, std::size_t index) : buffer_(buffer), index_(index) {};
-        
-        const T& operator*() const{
+
+        const T& operator*() const {
             return (*buffer_)[index_];
         }
 
-        Iterator& operator++(){
+        Iterator& operator++() {
             ++index_;
             return *this;
         }
 
-        bool operator!=(const Iterator& other) const{
+        bool operator!=(const Iterator& other) const {
             return buffer_ != other.buffer_ || index_ != other.index_;
         }
+
      private:
         const RingBuffer* buffer_;
         std::size_t index_;
@@ -63,17 +64,17 @@ class RingBuffer {
 
     // Дописывает элемент. Если буфер полон, самый старый затирается — окно,
     // а не архив.
-    void PushBack(const T& value){
+    void PushBack(const T& value) {
         if (full()) {
             head_ = (head_ + 1) % N;
         } else {
             ++size_;
         }
         buffer_[tail_] = value;
-        tail_ = (tail_ + 1) % N; 
+        tail_ = (tail_ + 1) % N;
     }
 
-    void Clear(){
+    void Clear() {
         head_ = 0;
         tail_ = 0;
         size_ = 0;
@@ -83,7 +84,7 @@ class RingBuffer {
         return size_;
     }
 
-    static constexpr std::size_t capacity(){
+    static constexpr std::size_t capacity() {
         return N;
     }
 
@@ -96,7 +97,7 @@ class RingBuffer {
     }
 
     // По логическому индексу: 0 — самый старый.
-    const T& operator[](std::size_t index) const{
+    const T& operator[](std::size_t index) const {
         return buffer_[(head_ + index) % N];
     }
 
@@ -106,14 +107,14 @@ class RingBuffer {
         return buffer_[(tail_ + N - 1) % N];
     }
 
-    Iterator begin() const{
+    Iterator begin() const {
         return Iterator(this, 0);
     }
-    Iterator end() const{
+    Iterator end() const {
         return Iterator(this, size_);
     }
 
-private:
+ private:
     T buffer_[N];
     std::size_t head_{0};
     std::size_t tail_{0};

@@ -1,4 +1,4 @@
-// Заготовка записи окна. Занятие 3.3.
+// Заготовка WindowEntry — записи в window_ агента. Занятие 3.3.
 //
 // Скопируйте файл в `src/` и допишите. С этого момента он ваш: правьте что
 // угодно, включая этот комментарий.
@@ -6,7 +6,7 @@
 // ЭТО ВАША ЖЕ ЗАПИСЬ, ПЕРЕЕХАВШАЯ В ОТДЕЛЬНЫЙ ЗАГОЛОВОК
 //
 // Тип вы придумали на занятии 3.1 и держали в `agent.h`. Теперь он нужен
-// не только окну, но и выданным тестам, а тест подключает `window_entry.h`
+// не только `window_`, но и выданным тестам, а тест подключает `window_entry.h`
 // по имени — поэтому у записи появляется свой заголовок. Свою структуру
 // из `agent.h` удалите: двух `WindowEntry` в программе быть не должно.
 //
@@ -55,18 +55,19 @@
 #define NANO_EDR_WINDOW_ENTRY_H
 
 #include <string>
+#include <utility>
 
 #include "copy_stats.h"
 #include "event.h"
 
 namespace nano_edr {
 
-// Что окно хранит и почему не событие целиком. Кольцевой буфер лежит
+// Что хранит `window_` и почему не событие целиком. Кольцевой буфер лежит
 // в объекте, `std::array` внутри требует, чтобы `T` создавался по умолчанию,
 // а у `Event` конструктора по умолчанию нет и быть не должно: у него
 // инвариант с занятия 2.1, и «пустое событие» ему противоречит. Разрешается
-// это не отменой инварианта, а тем, что в окно кладётся ровно то, что нужно
-// для печати контекста.
+// это не отменой инварианта, а тем, что в `window_` кладётся ровно то,
+// что нужно для печати контекста.
 struct WindowEntry {
     Timestamp ts;
     std::string type;
@@ -75,11 +76,27 @@ struct WindowEntry {
     WindowEntry() = default;
     ~WindowEntry() = default;
 
-    WindowEntry(const WindowEntry& other);
-    WindowEntry& operator=(const WindowEntry& other);
+    WindowEntry(const WindowEntry& other) : ts(other.ts), type(other.type), pid(other.pid) {
+        ++copy_stats().window_copied;
+    }
+    WindowEntry& operator=(const WindowEntry& other) {
+        this->pid = other.pid;
+        this->ts = other.ts;
+        this->type = other.type;
+        ++copy_stats().window_copied;
+        return *this;
+    }
 
-    WindowEntry(WindowEntry&& other) noexcept;
-    WindowEntry& operator=(WindowEntry&& other) noexcept;
+    WindowEntry(WindowEntry&& other) noexcept : ts(std::move(other.ts)), type(std::move(other.type)), pid(std::move(other.pid)) {
+        ++copy_stats().window_moved;
+    }
+    WindowEntry& operator=(WindowEntry&& other) noexcept {
+        this->pid = std::move(other.pid);
+        this->ts = std::move(other.ts);
+        this->type = std::move(other.type);
+        ++copy_stats().window_moved;
+        return *this;
+    }
 };
 
 }  // namespace nano_edr

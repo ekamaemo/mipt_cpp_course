@@ -1,5 +1,9 @@
 #include <event.h>
 
+#include <utility>
+
+#include "copy_stats.h"
+
 namespace nano_edr {
 Timestamp Event::Validate(const std::string& raw_ts, const std::string& type) {
     if (raw_ts.empty()) {
@@ -24,8 +28,10 @@ Event::Event(EventParts&& parts)
       raw_ts_(std::move(parts.ts)),
       type_(std::move(parts.type)),
       event_type_(EventTypeFromString(type_)),
-      pid_(std::move(parts.pid)),
-      fields_(std::move(parts.fields)) {}
+      pid_(std::move(parts.pid)) {
+    copy_stats().event_strings_moved += 3 + 2 * parts.fields.size();
+    fields_ = std::move(parts.fields);
+}
 
 Event::Event(const EventParts& parts)
     : ts_(Validate(parts.ts, parts.type)),
@@ -33,7 +39,9 @@ Event::Event(const EventParts& parts)
       type_(parts.type),
       event_type_(EventTypeFromString(type_)),
       pid_(parts.pid),
-      fields_(parts.fields) {}
+      fields_(parts.fields) {
+    copy_stats().event_strings_copied += 3 + 2 * parts.fields.size();
+}
 
 std::string ToString(const Event& event) {
     std::string result;

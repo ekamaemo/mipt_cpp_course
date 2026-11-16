@@ -1,25 +1,27 @@
 #include "rule_engine.h"
 
+#include "copy_stats.h"
+
 namespace nano_edr {
-void RuleEngine::AddRule(std::unique_ptr<IRule> rule){
+void RuleEngine::AddRule(std::unique_ptr<IRule> rule) {
     rules_.push_back(std::move(rule));
 }
 
-std::size_t RuleEngine::ProcessEvent(const Event& event, std::vector<const IRule*>* fired){
+std::size_t RuleEngine::ProcessEvent(const Event& event, std::vector<const IRule*>* fired) {
     std::size_t count = 0;
-    for (std::size_t i = 0; i < size(); ++i){
-        if (rules_[i]->Check(event)){
+    for (std::size_t i = 0; i < size(); ++i) {
+        if (rules_[i]->Check(event)) {
             ++count;
-            if (fired != nullptr){
+            if (fired != nullptr) {
                 fired->push_back(&rule(i));
             }
             Detection detection = MakeDetection(rule(i), event);
-            for (const AlertSink& sink : sinks_){
+            for (const AlertSink& sink : sinks_) {
                 sink(detection);
             }
         }
     }
-    return count;   
+    return count;
 }
 
 void RuleEngine::Subscribe(AlertSink sink) {
@@ -36,6 +38,8 @@ Detection RuleEngine::MakeDetection(const IRule& rule, const Event& event) const
         detection.chain = model_->DescribeChain(event.pid());
     }
     detection.actions = rule.actions();
+    detection.evidence.push_back(std::make_unique<Event>(event));
+    ++copy_stats().evidence_copied;
     return detection;
 }
-}
+}  // namespace nano_edr

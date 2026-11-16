@@ -1,5 +1,7 @@
 #include "file_source.h"
+
 #include <fstream>
+
 #include "parse.h"
 
 namespace nano_edr {
@@ -31,4 +33,4 @@ void FileSource::Run(IEventHandler* handler) {
         }
     }
 }
-}
+}  // namespace nano_edr
