@@ -14,7 +14,6 @@ Agent::Agent(bool quiet, uint64_t dedup_period_ms) : engine_(BuildAgentRules(&mo
 void Agent::HandleEvent(const Event& event) {
     model_.Observe(event);
     context_printed_ = false;
-    engine_.ProcessEvent(event, nullptr);
     ++total_;
     ++types_[event.type()];
     WindowEntry entry;
@@ -22,6 +21,10 @@ void Agent::HandleEvent(const Event& event) {
     entry.type = event.type();
     entry.pid = event.pid();
     window_.PushBack(std::move(entry));
+    if (responder_ != nullptr && responder_->Recognize(event)) {
+        return;
+    }
+    engine_.ProcessEvent(event, nullptr);
 }
 
 void Agent::PrintSummary() const {
@@ -41,6 +44,15 @@ void Agent::PrintSummary() const {
     std::print("[STAT] в окне занято {} из {} мест\n", window_.size(), window_.capacity());
     std::print("[STAT] в модели процессов {}, файлов {}\n", model_.process_count(), model_.file_count());
     std::print("[STAT] подавлено дубликатов {} (срок {} мс)\n", suppressed_, dedup_period_ms_);
+
+    if (responder_ != nullptr){
+        std::print("[STAT] действий запланировано {}, повторов отброшено {}\n"
+                        "[STAT] завершено процессов {}, изолировано файлов {}, удалено файлов {}\n",
+                    responder_->stats().planned, responder_->stats().skipped_repeat, responder_->stats().killed, responder_->stats().quarantined, responder_->stats().deleted);
+        if (responder_->stats().own_events > 0){
+            std::print("[STAT] своих событий {}\n", responder_->stats().own_events);
+        }
+    }
 }
 
 void Agent::CountComment() {

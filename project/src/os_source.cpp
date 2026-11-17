@@ -1,6 +1,7 @@
 #include "os_source.h"
 
 #include <print>
+#include <utility>
 
 #include "event_source.h"
 
@@ -38,7 +39,7 @@ void OsSource::Trampoline(const os_event* ev, void* ctx) noexcept {
     IEventHandler* handler = static_cast<IEventHandler*>(ctx);
     try {
         EventParts parts = ConvertOsEvent(ev);
-        Event event(parts);
+        Event event(std::move(parts));
         handler->HandleEvent(event);
     } catch (const std::exception& error) {
         handler->OnBroken();
