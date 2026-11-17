@@ -1,11 +1,12 @@
 #include "agent_rules.h"
-#include "rule_engine.h"
-#include"make_rule.h"
-#include"combinators.h"
 
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include "combinators.h"
+#include "make_rule.h"
+#include "rule_engine.h"
 
 namespace nano_edr {
 namespace {
@@ -30,6 +31,8 @@ void AddScriptHostFromTempRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+    rule->AddAction("quarantine_source");
+    rule->AddAction("delete_dropped");
     engine.AddRule(std::move(rule));
 }
 
@@ -51,6 +54,7 @@ void AddLolbinDownloadRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+
     engine.AddRule(std::move(rule));
 }
 
@@ -72,6 +76,7 @@ void AddHiddenPowershellRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+
     engine.AddRule(std::move(rule));
 }
 
@@ -87,7 +92,7 @@ void AddAutostartWriteRule(RuleEngine& engine) {
     target->Add(std::make_unique<FieldContains>("to", "/start menu/programs/startup/"));
     rule->AddCondition(std::move(target));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("delete_evidence");
     engine.AddRule(std::move(rule));
 }
 
@@ -101,19 +106,19 @@ void AddRansomExtensionRule(RuleEngine& engine) {
     paths->Add(std::make_unique<FieldEndsWith>("to", ".locked"));
     rule->AddCondition(std::move(paths));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("kill_process");
+    rule->AddAction("quarantine_image");
     engine.AddRule(std::move(rule));
 }
 void AddScriptHostBeacon(RuleEngine& engine) {
     auto beacon = MakeRule<SequenceRule>("script_host_beacon",
-                                                 Severity::kCritical, 10000);
+                                         Severity::kCritical, 10000);
 
     auto first = std::make_unique<AllOf>();
 
     first->Add(std::make_unique<EventTypeIs>(
         std::vector<EventType>{EventType::kProcessStart}));
 
-        
     auto image = std::make_unique<AnyOf>();
     image->Add(std::make_unique<FieldEndsWith>("image", "wscript.exe"));
     image->Add(std::make_unique<FieldEndsWith>("image", "cscript.exe"));
@@ -142,18 +147,16 @@ void AddScriptMassWriteRule(RuleEngine& engine) {
         20,      // сколько событий
         10000,   // за сколько миллисекунд
         "pid");  // порог считается для каждого pid отдельно
-    
-    mass_write->SetCondition(MakeCondition(AllOfStatic(
-    EventTypeIs({EventType::kFileCreate, EventType::kFileWrite,
-                 EventType::kFileMove}),
-    AnyOfStatic(FieldContains("path", "\\Documents\\"),
-                FieldContains("path", "\\Desktop\\"),
-                FieldContains("to", "\\Documents\\"),
-                FieldContains("to", "\\Desktop\\")
-                ))));
-    mass_write->AddAction("kill_process");
-    mass_write->AddAction("quarantine_file");
 
+    mass_write->SetCondition(MakeCondition(AllOfStatic(
+        EventTypeIs({EventType::kFileCreate, EventType::kFileWrite,
+                     EventType::kFileMove}),
+        AnyOfStatic(FieldContains("path", "\\Documents\\"),
+                    FieldContains("path", "\\Desktop\\"),
+                    FieldContains("to", "\\Documents\\"),
+                    FieldContains("to", "\\Desktop\\")))));
+    mass_write->AddAction("kill_process");
+    mass_write->AddAction("quarantine_image");
 
     engine.AddRule(std::move(mass_write));
 }
@@ -161,7 +164,7 @@ void AddScriptMassWriteRule(RuleEngine& engine) {
 void AddShellSpawnsScriptHost(RuleEngine& engine, const EntityModel* model) {
     auto shell_spawns_script_host = MakeRule<SequenceRule>(
         "shell_spawns_script_host", Severity::kHigh, 30000);
-        
+
     auto first = std::make_unique<AllOf>();
     first->Add(std::make_unique<EventTypeIs>(
         std::vector<EventType>{EventType::kProcessStart}));
@@ -185,10 +188,10 @@ void AddShellSpawnsScriptHost(RuleEngine& engine, const EntityModel* model) {
     shell_spawns_script_host->SetModel(model);
     shell_spawns_script_host->AddAction("kill_process");
     engine.AddRule(std::move(shell_spawns_script_host));
-} 
+}
 
 void AddSpawnedFromDroppedFileRule(RuleEngine& engine, const EntityModel* model) {
-    auto dropped = MakeRule<LambdaRule>("spawned_from_dropped_file", Severity::kHigh, [model](const Event& event){
+    auto dropped = MakeRule<LambdaRule>("spawned_from_dropped_file", Severity::kHigh, [model](const Event& event) {
         if (event.event_type() != EventType::kProcessStart) {
             return false;
         }
@@ -196,11 +199,12 @@ void AddSpawnedFromDroppedFileRule(RuleEngine& engine, const EntityModel* model)
         return source != nullptr && !source->writer_pid.empty() && source->writer_pid != event.pid();
     });
     dropped->AddAction("kill_process");
-    dropped->AddAction("quarantine_file");
+    dropped->AddAction("quarantine_source");
+    dropped->AddAction("delete_dropped");
     engine.AddRule(std::move(dropped));
 }
 
-} // namespace
+}  // namespace
 
 RuleEngine BuildAgentRules(const EntityModel* model) {
     RuleEngine engine;

@@ -1,23 +1,24 @@
 #include "rule.h"
+
 #include <cstddef>
 
 namespace nano_edr {
 
 RuleBase::RuleBase(const std::string& id, Severity severity) : id_(id), severity_(severity) {}
 
-void RuleBase::AddAction(const std::string& action){
+void RuleBase::AddAction(const std::string& action) {
     actions_.push_back(action);
 }
 
 MatchRule::MatchRule(const std::string& id, Severity severity) : RuleBase(id, severity) {}
 
-void MatchRule::AddCondition(std::unique_ptr<ICondition> condition){
+void MatchRule::AddCondition(std::unique_ptr<ICondition> condition) {
     conditions_.push_back(std::move(condition));
 }
 
-bool MatchRule::Check(const Event& event){
+bool MatchRule::Check(const Event& event) {
     for (std::size_t i = 0; i < condition_count(); ++i) {
-        if (!conditions_[i]->Matches(event)){
+        if (!conditions_[i]->Matches(event)) {
             return false;
         }
     }
@@ -34,15 +35,15 @@ void SequenceRule::SetFirst(std::unique_ptr<ICondition> condition) {
 }
 
 void SequenceRule::SetSecond(std::unique_ptr<ICondition> condition) {
-    second_= std::move(condition);
+    second_ = std::move(condition);
 }
 
 bool SequenceRule::Check(const Event& event) {
-    if (!first_ || !second_){
+    if (!first_ || !second_) {
         return false;
-    } 
+    }
     const uint64_t now_ms = event.ts().ms;
-    for (auto it = pending_.begin(); it != pending_.end(); ) {
+    for (auto it = pending_.begin(); it != pending_.end();) {
         if (now_ms - it->ts_ms > window_ms_) {
             it = pending_.erase(it);
         } else {
@@ -51,7 +52,7 @@ bool SequenceRule::Check(const Event& event) {
     }
 
     if (second_->Matches(event)) {
-        std::size_t found = pending_.size();   
+        std::size_t found = pending_.size();
         for (std::size_t i = 0; i < pending_.size(); ++i) {
             if (Linked(pending_[i], event)) {
                 found = i;
@@ -90,14 +91,14 @@ bool SequenceRule::Linked(const Pending& first, const Event& second) const {
 LambdaRule::LambdaRule(const std::string& id, Severity severity, Predicate predicate)
     : RuleBase(id, severity), predicate_(std::move(predicate)) {}
 
-bool LambdaRule::Check(const Event& event) { 
+bool LambdaRule::Check(const Event& event) {
     if (predicate_ == nullptr) {
-            return false;
+        return false;
     }
-    if (predicate_(event)){
+    if (predicate_(event)) {
         CountHit();
         return true;
     }
     return false;
 }
-}
+}  // namespace nano_edr

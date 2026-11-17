@@ -1,19 +1,17 @@
 #pragma once
 #include <event_list.h>
+
 #include <unordered_map>
-#include "rule.h"
+
 #include "agent_rules.h"
 #include "event_source.h"
+#include "rule.h"
+#include "window_entry.h"
+#include "response.h"
 
 namespace nano_edr {
-struct WindowEntry {
-    Timestamp ts;
-    std::string type;
-    std::string pid;
-};
 
-
-class Agent : public IEventHandler{
+class Agent : public IEventHandler {
  public:
     static constexpr std::size_t kWindowCapacity = 256;
     explicit Agent(bool quiet, uint64_t dedup_period_ms);
@@ -28,6 +26,12 @@ class Agent : public IEventHandler{
     void CountRejected();
 
     void Subscribe(AlertSink sink);
+    void EnableResponse(OsHandle* os, bool dry_run,
+                    const std::string& quarantine_dir);
+
+    std::unique_ptr<ResponsePlanner> planner_{};
+    std::unique_ptr<Responder> responder_{};
+
 
  private:
     RingBuffer<WindowEntry, kWindowCapacity> window_;

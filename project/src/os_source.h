@@ -5,15 +5,17 @@
 namespace nano_edr {
 
 EventParts ConvertOsEvent(const os_event* ev);
-class OsSource : public IEventSource{
+class OsSource : public IEventSource {
  public:
     explicit OsSource(const std::string& config_path)
         : handle_(config_path) {}
 
+    OsHandle* os() override { return &handle_; }
+    
     void Run(IEventHandler*) override;
     static void Trampoline(const os_event* ev, void* ctx) noexcept;
 
  private:
     OsHandle handle_;
 };
-} 
+}  // namespace nano_edr

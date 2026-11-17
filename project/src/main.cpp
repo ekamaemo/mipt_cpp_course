@@ -19,33 +19,38 @@
 #include <print>
 #include <string>
 
-#include "file_source.h"
-#include "os_source.h"
 #include "agent.h"
+#include "copy_stats.h"
 #include "edr_handle.h"
 #include "field_traits.h"
-
+#include "file_source.h"
+#include "os_source.h"
 
 struct Options {
     bool quiet = false;
+    bool copies = false;
+    bool dry_run = false;
     std::string path;
     bool file_mode = false;
     std::string out;
 };
 
-
 bool ParseArgs(int argc, char** argv, Options* options) {
     if (argc < 2) {
         std::print(stderr,
-    "использование: nano-edr [--quiet] [--out <файл>] <журнал.log>\n"
-    "             nano-edr [--quiet] [--out <файл>] --file <журнал.log>\n"
-    "  --file <журнал.log>  читать события из файла\n"
-    "  --out <файл>         сохранить детекты также в файл\n");
+                   "использование: nano-edr [--quiet] [--out <файл>] <журнал.log>\n"
+                   "             nano-edr [--quiet] [--out <файл>] --file <журнал.log>\n"
+                   "  --file <журнал.log>  читать события из файла\n"
+                   "  --out <файл>         сохранить детекты также в файл\n");
         return false;
     }
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--quiet") {
             options->quiet = true;
+        } else if (std::string(argv[i]) == "--copies") {
+            options->copies = true;
+        } else if (std::string(argv[i]) == "--dry-run"){
+            options->dry_run = true;
         } else if (std::string(argv[i]) == "--file") {
             if (options->file_mode) {
                 std::print(stderr, "--file задан дважды\n");
@@ -74,7 +79,7 @@ bool ParseArgs(int argc, char** argv, Options* options) {
         } else if (std::string(argv[i]).starts_with("--")) {
             std::print(stderr, "неизвестная опция: {}\n", std::string(argv[i]));
             return false;
-        }else {
+        } else {
             if (!options->path.empty()) {
                 std::print(stderr, "путь задан дважды\n");
                 return false;
@@ -91,7 +96,6 @@ bool ParseArgs(int argc, char** argv, Options* options) {
     return true;
 }
 
-
 int main(int argc, char** argv) {
     try {
         Options options;
@@ -105,15 +109,13 @@ int main(int argc, char** argv) {
             std::print(stderr, "[WARN] dedup_period_ms не разбирается: {}\n", text);
             dedup_period_ms = 10000;
         }
-        nano_edr::Agent agent(options.quiet, dedup_period_ms);
-
         std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file_mode) {
             source = std::make_unique<nano_edr::FileSource>(options.path);
         } else {
             source = std::make_unique<nano_edr::OsSource>(options.path);
         }
-
+        nano_edr::Agent agent(options.quiet, dedup_period_ms);
         nano_edr::FanOutSink targets;
         targets.Add(nano_edr::EdrSink(&edr));
         targets.Add(nano_edr::ConsoleSink());
@@ -121,13 +123,24 @@ int main(int argc, char** argv) {
             targets.Add(nano_edr::FileSink(options.out));
         }
         agent.Subscribe(std::move(targets));
+        agent.EnableResponse(source->os(), options.dry_run,
+                     edr.Config("quarantine_dir", "C:\\quarantine"));
 
         source->Run(&agent);
-        if (edr.Flush() != EDR_OK){
+        if (edr.Flush() != EDR_OK) {
             std::print(stderr, "[WARN] детекты не отправлены\n");
         }
         agent.PrintSummary();
-
+        if (options.copies) {
+            std::print("[COPY] строк события скопировано {}, перемещено {}\n"
+                       "[COPY] записей WindowEntry скопировано {}, перемещено {}\n"
+                       "[COPY] событий скопировано в детекты {}\n"
+                       "[COPY] копий всего {}\n",
+                       nano_edr::copy_stats().event_strings_copied, nano_edr::copy_stats().event_strings_moved,
+                       nano_edr::copy_stats().window_copied, nano_edr::copy_stats().window_moved,
+                       nano_edr::copy_stats().evidence_copied,
+                       nano_edr::copy_stats().total());
+        }
         return 0;
     } catch (const std::exception& error) {
         std::print(stderr, "error: {}\n", error.what());

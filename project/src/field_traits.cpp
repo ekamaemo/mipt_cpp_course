@@ -1,4 +1,5 @@
 #include "field_traits.h"
+
 #include "text.h"
 
 namespace nano_edr {
@@ -11,7 +12,7 @@ bool FieldTraits<uint64_t>::Parse(const std::string& text, uint64_t* out) {
     uint64_t value = 0;
     const auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), value);
     if (ec != std::errc{} || ptr != text.data() + text.size()) {
-        return false;   
+        return false;
     }
     *out = value;
     return true;

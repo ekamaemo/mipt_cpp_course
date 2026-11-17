@@ -1,5 +1,7 @@
 #include "file_source.h"
+
 #include <fstream>
+
 #include "parse.h"
 
 namespace nano_edr {
@@ -23,7 +25,7 @@ void FileSource::Run(IEventHandler* handler) {
         }
 
         try {
-            Event event(parts);
+            Event event(std::move(parts));
             handler->HandleEvent(event);
         } catch (const std::exception&) {
             handler->OnBroken();
@@ -31,4 +33,4 @@ void FileSource::Run(IEventHandler* handler) {
         }
     }
 }
-}
+}  // namespace nano_edr

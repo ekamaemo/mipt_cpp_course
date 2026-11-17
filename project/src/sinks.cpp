@@ -1,12 +1,10 @@
+#include <print>
 #include <stdexcept>
 #include <string>
 
 #include "alert_sink.h"
 #include "dedup_sink.h"
 #include "detection.h"
-
-#include<print>
-
 
 namespace nano_edr {
 
@@ -32,7 +30,9 @@ void FileSink::operator()(const Detection& detection) {
 
 void CountingSink::operator()(const Detection& detection) const {
     ++counter_->total;
-    counter_->seen.push_back(detection);
+    counter_->seen.push_back(SeenAlert{detection.rule, detection.severity,
+                                       detection.ts, detection.pid,
+                                       detection.actions});
 }
 
 // --- FanOutSink ------------------------------------------------------------
@@ -57,9 +57,9 @@ void DedupSink::operator()(const Detection& detection) {
         inner_(detection);
         return;
     }
-    for (Detect& d : last_forwarded_){
-        if (d.rule == detection.rule && d.pid == detection.pid){
-            if(detection.ts.ms - d.ts_ms_first <= period_ms_){
+    for (Detect& d : last_forwarded_) {
+        if (d.rule == detection.rule && d.pid == detection.pid) {
+            if (detection.ts.ms - d.ts_ms_first <= period_ms_) {
                 if (suppressed_ != nullptr) {
                     ++(*suppressed_);
                 }
@@ -67,7 +67,7 @@ void DedupSink::operator()(const Detection& detection) {
             } else {
                 inner_(detection);
                 d.ts_ms_first = detection.ts.ms;
-                return; // чтобы не заполнять память лишним - меняем последнее время
+                return;  // чтобы не заполнять память лишним - меняем последнее время
             }
         }
     }

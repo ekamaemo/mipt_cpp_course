@@ -1,10 +1,12 @@
 #include "os_source.h"
+
+#include <print>
+#include <utility>
+
 #include "event_source.h"
-#include<print>
 
+namespace nano_edr {
 
-namespace nano_edr{
-    
 EventParts ConvertOsEvent(const os_event* ev) {
     EventParts parts;
     parts.ts = std::to_string(ev->ts);
@@ -37,7 +39,7 @@ void OsSource::Trampoline(const os_event* ev, void* ctx) noexcept {
     IEventHandler* handler = static_cast<IEventHandler*>(ctx);
     try {
         EventParts parts = ConvertOsEvent(ev);
-        Event event(parts);
+        Event event(std::move(parts));
         handler->HandleEvent(event);
     } catch (const std::exception& error) {
         handler->OnBroken();
