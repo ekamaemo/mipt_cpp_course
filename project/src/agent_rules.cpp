@@ -31,6 +31,8 @@ void AddScriptHostFromTempRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+    rule->AddAction("quarantine_source");
+    rule->AddAction("delete_dropped");
     engine.AddRule(std::move(rule));
 }
 
@@ -52,6 +54,7 @@ void AddLolbinDownloadRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+
     engine.AddRule(std::move(rule));
 }
 
@@ -73,6 +76,7 @@ void AddHiddenPowershellRule(RuleEngine& engine) {
     rule->AddCondition(std::move(cmdline));
 
     rule->AddAction("kill_process");
+
     engine.AddRule(std::move(rule));
 }
 
@@ -88,7 +92,7 @@ void AddAutostartWriteRule(RuleEngine& engine) {
     target->Add(std::make_unique<FieldContains>("to", "/start menu/programs/startup/"));
     rule->AddCondition(std::move(target));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("delete_evidence");
     engine.AddRule(std::move(rule));
 }
 
@@ -102,7 +106,8 @@ void AddRansomExtensionRule(RuleEngine& engine) {
     paths->Add(std::make_unique<FieldEndsWith>("to", ".locked"));
     rule->AddCondition(std::move(paths));
 
-    rule->AddAction("quarantine_file");
+    rule->AddAction("kill_process");
+    rule->AddAction("quarantine_image");
     engine.AddRule(std::move(rule));
 }
 void AddScriptHostBeacon(RuleEngine& engine) {
@@ -151,7 +156,7 @@ void AddScriptMassWriteRule(RuleEngine& engine) {
                     FieldContains("to", "\\Documents\\"),
                     FieldContains("to", "\\Desktop\\")))));
     mass_write->AddAction("kill_process");
-    mass_write->AddAction("quarantine_file");
+    mass_write->AddAction("quarantine_image");
 
     engine.AddRule(std::move(mass_write));
 }
@@ -194,7 +199,8 @@ void AddSpawnedFromDroppedFileRule(RuleEngine& engine, const EntityModel* model)
         return source != nullptr && !source->writer_pid.empty() && source->writer_pid != event.pid();
     });
     dropped->AddAction("kill_process");
-    dropped->AddAction("quarantine_file");
+    dropped->AddAction("quarantine_source");
+    dropped->AddAction("delete_dropped");
     engine.AddRule(std::move(dropped));
 }
 

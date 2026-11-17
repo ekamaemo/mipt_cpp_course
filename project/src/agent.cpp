@@ -92,4 +92,14 @@ void Agent::PrintContextOnce() {
         context_printed_ = true;
     }
 }
+
+void Agent::EnableResponse(OsHandle* os, bool dry_run,
+                           const std::string& quarantine_dir) {
+    planner_ = std::make_unique<ResponsePlanner>(&model_, quarantine_dir);
+    responder_ = std::make_unique<Responder>(os, dry_run);
+    engine_.Subscribe([this](const Detection& detection) {
+        responder_->Execute(planner_->Plan(detection));
+    });
+}
+
 }  // namespace nano_edr

@@ -29,6 +29,7 @@
 struct Options {
     bool quiet = false;
     bool copies = false;
+    bool dry_run = false;
     std::string path;
     bool file_mode = false;
     std::string out;
@@ -48,6 +49,8 @@ bool ParseArgs(int argc, char** argv, Options* options) {
             options->quiet = true;
         } else if (std::string(argv[i]) == "--copies") {
             options->copies = true;
+        } else if (std::string(argv[i]) == "--dry-run"){
+            options->dry_run = true;
         } else if (std::string(argv[i]) == "--file") {
             if (options->file_mode) {
                 std::print(stderr, "--file задан дважды\n");
@@ -106,15 +109,13 @@ int main(int argc, char** argv) {
             std::print(stderr, "[WARN] dedup_period_ms не разбирается: {}\n", text);
             dedup_period_ms = 10000;
         }
-        nano_edr::Agent agent(options.quiet, dedup_period_ms);
-
         std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file_mode) {
             source = std::make_unique<nano_edr::FileSource>(options.path);
         } else {
             source = std::make_unique<nano_edr::OsSource>(options.path);
         }
-
+        nano_edr::Agent agent(options.quiet, dedup_period_ms);
         nano_edr::FanOutSink targets;
         targets.Add(nano_edr::EdrSink(&edr));
         targets.Add(nano_edr::ConsoleSink());
@@ -122,6 +123,8 @@ int main(int argc, char** argv) {
             targets.Add(nano_edr::FileSink(options.out));
         }
         agent.Subscribe(std::move(targets));
+        agent.EnableResponse(source->os(), options.dry_run,
+                     edr.Config("quarantine_dir", "C:\\quarantine"));
 
         source->Run(&agent);
         if (edr.Flush() != EDR_OK) {

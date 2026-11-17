@@ -1,4 +1,5 @@
 #include <string>
+#include <print>
 
 #include "detection.h"
 #include "entity_model.h"
@@ -115,6 +116,32 @@ std::string ResponsePlanner::QuarantinePath(const std::string& path,
 
 Responder::Responder(OsHandle* os, bool dry_run) : os_(os), dry_run_(dry_run) {}
 
-void Responder::Execute(const ResponsePlan&) {}
+void Responder::Execute(const ResponsePlan& plan) {
+    for (const Action& action : plan.actions()) {
+        ++stats_.planned;
+
+        // цель, по которой уже отработали: на одном процессе срабатывает
+        // несколько правил
+        bool repeat = false;
+        for (const std::string& target : done_) {
+            if (target == action.target()) {
+                repeat = true;
+                break;
+            }
+        }
+        if (repeat) {
+            ++stats_.skipped_repeat;
+            continue;
+        }
+        done_.push_back(action.target());
+
+        if (dry_run_ || os_ == nullptr) {
+            std::print("[PLAN] {}\n", ToString(action));
+            continue;
+        }
+        // на шаге 6 здесь действие исполняется
+    }
+}
+
 
 }  // namespace nano_edr

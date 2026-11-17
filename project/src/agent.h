@@ -7,6 +7,7 @@
 #include "event_source.h"
 #include "rule.h"
 #include "window_entry.h"
+#include "response.h"
 
 namespace nano_edr {
 
@@ -25,6 +26,12 @@ class Agent : public IEventHandler {
     void CountRejected();
 
     void Subscribe(AlertSink sink);
+    void EnableResponse(OsHandle* os, bool dry_run,
+                    const std::string& quarantine_dir);
+
+    std::unique_ptr<ResponsePlanner> planner_{};
+    std::unique_ptr<Responder> responder_{};
+
 
  private:
     RingBuffer<WindowEntry, kWindowCapacity> window_;
